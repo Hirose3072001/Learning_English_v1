@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Lock, Star, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface LessonNode {
   id: number;
@@ -72,18 +74,36 @@ const Learn = () => {
 };
 
 const LessonButton = ({ lesson }: { lesson: LessonNode }) => {
+  const navigate = useNavigate();
   const isCompleted = lesson.status === "completed";
   const isCurrent = lesson.status === "current";
   const isLocked = lesson.status === "locked";
+
+  const handleClick = () => {
+    if (isLocked) return;
+    
+    if (isCurrent) {
+      toast.info(`Bắt đầu bài học: ${lesson.title}`, {
+        description: "Tính năng bài học đang được phát triển!",
+      });
+      // TODO: Navigate to lesson page when implemented
+      // navigate(`/lesson/${lesson.id}`);
+    } else if (isCompleted) {
+      toast.success(`Ôn tập bài: ${lesson.title}`, {
+        description: "Bạn đã hoàn thành bài này!",
+      });
+    }
+  };
 
   return (
     <div className="flex flex-col items-center gap-2">
       <Button
         size="icon"
+        onClick={handleClick}
         className={cn(
           "size-20 rounded-full transition-all",
-          isCompleted && "bg-gold shadow-[0_4px_0_0_hsl(35_93%_40%)]",
-          isCurrent && "animate-pulse-glow bg-primary shadow-duo-button",
+          isCompleted && "bg-gold shadow-[0_4px_0_0_hsl(35_93%_40%)] hover:brightness-110",
+          isCurrent && "animate-pulse-glow bg-primary shadow-duo-button hover:brightness-110",
           isLocked && "bg-muted text-muted-foreground shadow-duo cursor-not-allowed"
         )}
         disabled={isLocked}
