@@ -16,6 +16,7 @@ import Alphabet from "./pages/Alphabet";
 import Leaderboard from "./pages/Leaderboard";
 import Quests from "./pages/Quests";
 import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 // Layout
@@ -81,8 +82,9 @@ const App = () => (
             <Route path="/learn" element={<Learn />} />
             <Route path="/alphabet" element={<Alphabet />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/quests" element={<Quests />} />
+          <Route path="/quests" element={<Quests />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/admin" element={<Admin />} />
           </Route>
 
           {/* Catch-all */}

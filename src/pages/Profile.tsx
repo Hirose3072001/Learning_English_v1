@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,31 +11,18 @@ import {
   LogOut, 
   Settings,
   BookOpen,
-  Target
+  Target,
+  Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from "@supabase/supabase-js";
+import { useAuth } from "@/hooks/useAuth";
 
 const Profile = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -138,6 +124,17 @@ const Profile = () => {
 
       {/* Actions */}
       <div className="mt-8 space-y-3">
+        {isAdmin && (
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="w-full justify-start gap-3 border-primary text-primary hover:bg-primary/10"
+            onClick={() => navigate("/admin")}
+          >
+            <Shield className="size-5" />
+            Trang quản trị
+          </Button>
+        )}
         <Button variant="outline" size="lg" className="w-full justify-start gap-3">
           <Settings className="size-5" />
           Cài đặt
