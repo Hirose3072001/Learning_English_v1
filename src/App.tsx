@@ -12,6 +12,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Learn from "./pages/Learn";
+import Lesson from "./pages/Lesson";
 import Alphabet from "./pages/Alphabet";
 import Leaderboard from "./pages/Leaderboard";
 import Quests from "./pages/Quests";
@@ -80,9 +81,10 @@ const App = () => (
             }
           >
             <Route path="/learn" element={<Learn />} />
+            <Route path="/lesson/:lessonId" element={<Lesson />} />
             <Route path="/alphabet" element={<Alphabet />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/quests" element={<Quests />} />
+            <Route path="/quests" element={<Quests />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<Admin />} />
           </Route>
