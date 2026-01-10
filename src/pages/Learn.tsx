@@ -2,49 +2,138 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Lock, Star, CheckCircle2 } from "lucide-react";
+import { Lock, Star, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-interface LessonNode {
-  id: number;
+interface LessonWithProgress {
+  id: string;
   title: string;
+  description: string | null;
+  xp_reward: number;
+  order_index: number;
   status: "completed" | "current" | "locked";
-  xp?: number;
 }
 
-const lessons: LessonNode[] = [
-  { id: 1, title: "Xin chào", status: "completed", xp: 10 },
-  { id: 2, title: "Gia đình", status: "completed", xp: 15 },
-  { id: 3, title: "Thức ăn", status: "current" },
-  { id: 4, title: "Động vật", status: "locked" },
-  { id: 5, title: "Màu sắc", status: "locked" },
-  { id: 6, title: "Số đếm", status: "locked" },
-  { id: 7, title: "Thời gian", status: "locked" },
-];
-
 const Learn = () => {
+  const { user } = useAuth();
+
+  // Fetch units
+  const { data: units, isLoading: unitsLoading } = useQuery({
+    queryKey: ["units"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("units")
+        .select("*")
+        .eq("is_active", true)
+        .order("order_index");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch lessons for first unit
+  const { data: lessons, isLoading: lessonsLoading } = useQuery({
+    queryKey: ["lessons", units?.[0]?.id],
+    queryFn: async () => {
+      if (!units?.[0]?.id) return [];
+      const { data, error } = await supabase
+        .from("lessons")
+        .select("*")
+        .eq("unit_id", units[0].id)
+        .eq("is_active", true)
+        .order("order_index");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!units?.[0]?.id,
+  });
+
+  // Fetch user progress
+  const { data: progress } = useQuery({
+    queryKey: ["user_progress", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("user_progress")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("completed", true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Compute lesson statuses
+  const lessonsWithStatus: LessonWithProgress[] = (lessons || []).map((lesson, index) => {
+    const completedLessonIds = new Set((progress || []).map((p) => p.lesson_id));
+    const isCompleted = completedLessonIds.has(lesson.id);
+
+    // Find the first incomplete lesson
+    let firstIncompleteLessonIndex = (lessons || []).findIndex(
+      (l) => !completedLessonIds.has(l.id)
+    );
+    if (firstIncompleteLessonIndex === -1) {
+      firstIncompleteLessonIndex = (lessons || []).length;
+    }
+
+    let status: "completed" | "current" | "locked" = "locked";
+    if (isCompleted) {
+      status = "completed";
+    } else if (index === firstIncompleteLessonIndex) {
+      status = "current";
+    }
+
+    return {
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description,
+      xp_reward: lesson.xp_reward,
+      order_index: lesson.order_index,
+      status,
+    };
+  });
+
+  const completedCount = lessonsWithStatus.filter((l) => l.status === "completed").length;
+  const totalCount = lessonsWithStatus.length;
+
+  if (unitsLoading || lessonsLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const currentUnit = units?.[0];
+
   return (
     <div className="py-6">
       {/* Unit Header */}
       <Card className="mb-6 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold">Đơn vị 1</h2>
-            <p className="text-sm text-muted-foreground">Cơ bản</p>
+            <h2 className="text-lg font-bold">{currentUnit?.title || "Đơn vị 1"}</h2>
+            <p className="text-sm text-muted-foreground">{currentUnit?.description || "Cơ bản"}</p>
           </div>
           <div className="text-right">
             <p className="text-sm text-muted-foreground">Tiến độ</p>
-            <p className="font-bold text-primary">2/7</p>
+            <p className="font-bold text-primary">
+              {completedCount}/{totalCount}
+            </p>
           </div>
         </div>
-        <Progress value={(2 / 7) * 100} className="mt-3 h-3" />
+        <Progress value={totalCount > 0 ? (completedCount / totalCount) * 100 : 0} className="mt-3 h-3" />
       </Card>
 
       {/* Lesson Path */}
       <div className="relative flex flex-col items-center gap-4">
-        {lessons.map((lesson, index) => (
+        {lessonsWithStatus.map((lesson, index) => (
           <motion.div
             key={lesson.id}
             initial={{ opacity: 0, scale: 0.8 }}
@@ -56,7 +145,7 @@ const Learn = () => {
             )}
           >
             {/* Connecting line */}
-            {index < lessons.length - 1 && (
+            {index < lessonsWithStatus.length - 1 && (
               <div
                 className={cn(
                   "absolute top-full h-8 w-0.5 bg-border",
@@ -65,7 +154,7 @@ const Learn = () => {
               />
             )}
 
-            <LessonButton lesson={lesson} />
+            <LessonButton lesson={lesson} userId={user?.id} />
           </motion.div>
         ))}
       </div>
@@ -73,21 +162,43 @@ const Learn = () => {
   );
 };
 
-const LessonButton = ({ lesson }: { lesson: LessonNode }) => {
+const LessonButton = ({ lesson, userId }: { lesson: LessonWithProgress; userId?: string }) => {
   const navigate = useNavigate();
   const isCompleted = lesson.status === "completed";
   const isCurrent = lesson.status === "current";
   const isLocked = lesson.status === "locked";
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (isLocked) return;
-    
+
     if (isCurrent) {
-      toast.info(`Bắt đầu bài học: ${lesson.title}`, {
-        description: "Tính năng bài học đang được phát triển!",
-      });
-      // TODO: Navigate to lesson page when implemented
-      // navigate(`/lesson/${lesson.id}`);
+      // Mark lesson as completed (demo behavior)
+      if (userId) {
+        const { error } = await supabase.from("user_progress").insert({
+          user_id: userId,
+          lesson_id: lesson.id,
+          completed: true,
+          completed_at: new Date().toISOString(),
+          score: 100,
+        });
+
+        if (error) {
+          toast.error("Có lỗi xảy ra khi lưu tiến độ");
+          console.error(error);
+          return;
+        }
+
+        toast.success(`Hoàn thành bài: ${lesson.title}`, {
+          description: `+${lesson.xp_reward} XP!`,
+        });
+
+        // Reload the page to refresh progress
+        window.location.reload();
+      } else {
+        toast.info(`Bắt đầu bài học: ${lesson.title}`, {
+          description: "Đang phát triển tính năng...",
+        });
+      }
     } else if (isCompleted) {
       toast.success(`Ôn tập bài: ${lesson.title}`, {
         description: "Bạn đã hoàn thành bài này!",
@@ -120,8 +231,8 @@ const LessonButton = ({ lesson }: { lesson: LessonNode }) => {
       >
         {lesson.title}
       </span>
-      {isCompleted && lesson.xp && (
-        <span className="text-xs font-bold text-gold">+{lesson.xp} XP</span>
+      {isCompleted && lesson.xp_reward && (
+        <span className="text-xs font-bold text-gold">+{lesson.xp_reward} XP</span>
       )}
     </div>
   );
