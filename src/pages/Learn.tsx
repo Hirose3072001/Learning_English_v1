@@ -168,37 +168,12 @@ const LessonButton = ({ lesson, userId }: { lesson: LessonWithProgress; userId?:
   const isCurrent = lesson.status === "current";
   const isLocked = lesson.status === "locked";
 
-  const handleClick = async () => {
+  const handleClick = () => {
     if (isLocked) return;
 
     if (isCurrent) {
-      // Mark lesson as completed (demo behavior)
-      if (userId) {
-        const { error } = await supabase.from("user_progress").insert({
-          user_id: userId,
-          lesson_id: lesson.id,
-          completed: true,
-          completed_at: new Date().toISOString(),
-          score: 100,
-        });
-
-        if (error) {
-          toast.error("Có lỗi xảy ra khi lưu tiến độ");
-          console.error(error);
-          return;
-        }
-
-        toast.success(`Hoàn thành bài: ${lesson.title}`, {
-          description: `+${lesson.xp_reward} XP!`,
-        });
-
-        // Reload the page to refresh progress
-        window.location.reload();
-      } else {
-        toast.info(`Bắt đầu bài học: ${lesson.title}`, {
-          description: "Đang phát triển tính năng...",
-        });
-      }
+      // Navigate to lesson page
+      navigate(`/lesson/${lesson.id}`);
     } else if (isCompleted) {
       toast.success(`Ôn tập bài: ${lesson.title}`, {
         description: "Bạn đã hoàn thành bài này!",
