@@ -1,107 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
-import { X, Heart, CheckCircle2, XCircle, Volume2 } from "lucide-react";
+import { X, Heart, CheckCircle2, XCircle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-// Sample questions for lessons (in real app, these would come from database)
-const lessonQuestions: Record<string, Question[]> = {
-  "Xin chào": [
-    {
-      type: "multiple-choice",
-      question: "\"Xin chào\" nghĩa là gì?",
-      options: ["Goodbye", "Hello", "Thank you", "Sorry"],
-      correctIndex: 1,
-    },
-    {
-      type: "multiple-choice", 
-      question: "Chọn cách nói \"Hello\" trong tiếng Việt",
-      options: ["Tạm biệt", "Cảm ơn", "Xin chào", "Xin lỗi"],
-      correctIndex: 2,
-    },
-    {
-      type: "multiple-choice",
-      question: "\"Tạm biệt\" nghĩa là gì?",
-      options: ["Hello", "Goodbye", "Please", "Thanks"],
-      correctIndex: 1,
-    },
-  ],
-  "Gia đình": [
-    {
-      type: "multiple-choice",
-      question: "\"Mẹ\" nghĩa là gì?",
-      options: ["Father", "Mother", "Brother", "Sister"],
-      correctIndex: 1,
-    },
-    {
-      type: "multiple-choice",
-      question: "\"Bố\" là ai trong gia đình?",
-      options: ["Mother", "Sister", "Father", "Brother"],
-      correctIndex: 2,
-    },
-    {
-      type: "multiple-choice",
-      question: "Chọn từ đúng cho \"Sister\"",
-      options: ["Anh", "Em gái", "Mẹ", "Bố"],
-      correctIndex: 1,
-    },
-  ],
-  "Thức ăn": [
-    {
-      type: "multiple-choice",
-      question: "\"Cơm\" là gì?",
-      options: ["Bread", "Rice", "Noodles", "Soup"],
-      correctIndex: 1,
-    },
-    {
-      type: "multiple-choice",
-      question: "\"Phở\" là món ăn nào?",
-      options: ["Fried rice", "Spring rolls", "Noodle soup", "Salad"],
-      correctIndex: 2,
-    },
-    {
-      type: "multiple-choice",
-      question: "Chọn từ đúng cho \"Water\"",
-      options: ["Trà", "Cà phê", "Nước", "Sữa"],
-      correctIndex: 2,
-    },
-  ],
-};
-
-// Default questions for lessons without specific content
-const defaultQuestions: Question[] = [
-  {
-    type: "multiple-choice",
-    question: "Đây là câu hỏi mẫu 1",
-    options: ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
-    correctIndex: 0,
-  },
-  {
-    type: "multiple-choice",
-    question: "Đây là câu hỏi mẫu 2",
-    options: ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
-    correctIndex: 1,
-  },
-  {
-    type: "multiple-choice",
-    question: "Đây là câu hỏi mẫu 3",
-    options: ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
-    correctIndex: 2,
-  },
-];
-
 interface Question {
-  type: "multiple-choice";
+  id: string;
   question: string;
   options: string[];
-  correctIndex: number;
+  correct_index: number;
+  explanation: string | null;
+  order_index: number;
 }
 
 const Lesson = () => {
@@ -117,23 +33,45 @@ const Lesson = () => {
   const [correctCount, setCorrectCount] = useState(0);
 
   // Fetch lesson details
-  const { data: lesson, isLoading } = useQuery({
+  const { data: lesson, isLoading: lessonLoading } = useQuery({
     queryKey: ["lesson", lessonId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("lessons")
         .select("*")
         .eq("id", lessonId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!lessonId,
   });
 
-  const questions = lesson ? (lessonQuestions[lesson.title] || defaultQuestions) : defaultQuestions;
-  const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex) / questions.length) * 100;
+  // Fetch questions from database
+  const { data: questions, isLoading: questionsLoading } = useQuery({
+    queryKey: ["questions", lessonId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("questions")
+        .select("*")
+        .eq("lesson_id", lessonId)
+        .eq("is_active", true)
+        .order("order_index");
+      if (error) throw error;
+      
+      // Parse options from JSONB to string array
+      return (data || []).map(q => ({
+        ...q,
+        options: Array.isArray(q.options) ? q.options : JSON.parse(q.options as string)
+      })) as Question[];
+    },
+    enabled: !!lessonId,
+  });
+
+  const isLoading = lessonLoading || questionsLoading;
+  const currentQuestion = questions?.[currentQuestionIndex];
+  const totalQuestions = questions?.length || 0;
+  const progress = totalQuestions > 0 ? ((currentQuestionIndex) / totalQuestions) * 100 : 0;
 
   const handleSelectAnswer = (index: number) => {
     if (isAnswered) return;
@@ -141,9 +79,9 @@ const Lesson = () => {
   };
 
   const handleCheckAnswer = () => {
-    if (selectedAnswer === null) return;
+    if (selectedAnswer === null || !currentQuestion) return;
 
-    const correct = selectedAnswer === currentQuestion.correctIndex;
+    const correct = selectedAnswer === currentQuestion.correct_index;
     setIsCorrect(correct);
     setIsAnswered(true);
 
@@ -161,7 +99,7 @@ const Lesson = () => {
       return;
     }
 
-    if (currentQuestionIndex < questions.length - 1) {
+    if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setSelectedAnswer(null);
       setIsAnswered(false);
@@ -169,21 +107,33 @@ const Lesson = () => {
     } else {
       // Lesson completed!
       if (user && lesson) {
-        const { error } = await supabase.from("user_progress").insert({
-          user_id: user.id,
-          lesson_id: lesson.id,
-          completed: true,
-          completed_at: new Date().toISOString(),
-          score: Math.round((correctCount / questions.length) * 100),
-        });
+        // Check if already completed
+        const { data: existingProgress } = await supabase
+          .from("user_progress")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("lesson_id", lesson.id)
+          .maybeSingle();
 
-        if (error) {
-          console.error(error);
-          toast.error("Có lỗi khi lưu tiến độ");
-        } else {
-          toast.success(`Hoàn thành bài học!`, {
-            description: `+${lesson.xp_reward} XP`,
+        if (!existingProgress) {
+          const { error } = await supabase.from("user_progress").insert({
+            user_id: user.id,
+            lesson_id: lesson.id,
+            completed: true,
+            completed_at: new Date().toISOString(),
+            score: Math.round((correctCount / totalQuestions) * 100),
           });
+
+          if (error) {
+            console.error(error);
+            toast.error("Có lỗi khi lưu tiến độ");
+          } else {
+            toast.success(`🎉 Hoàn thành bài học!`, {
+              description: `Điểm: ${Math.round((correctCount / totalQuestions) * 100)}% | +${lesson.xp_reward} XP`,
+            });
+          }
+        } else {
+          toast.success("Bạn đã hoàn thành bài này trước đó!");
         }
       }
       navigate("/learn");
@@ -198,6 +148,21 @@ const Lesson = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <Card className="max-w-md p-6 text-center">
+          <XCircle className="mx-auto mb-4 size-12 text-muted-foreground" />
+          <h2 className="mb-2 text-xl font-bold">Chưa có câu hỏi</h2>
+          <p className="mb-4 text-muted-foreground">
+            Bài học này chưa có câu hỏi nào. Vui lòng thử lại sau!
+          </p>
+          <Button onClick={handleExit}>Quay lại</Button>
+        </Card>
       </div>
     );
   }
@@ -231,14 +196,14 @@ const Lesson = () => {
             {/* Question */}
             <div className="mb-8">
               <h2 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-                Câu {currentQuestionIndex + 1}/{questions.length}
+                Câu {currentQuestionIndex + 1}/{totalQuestions}
               </h2>
-              <p className="text-xl font-bold">{currentQuestion.question}</p>
+              <p className="text-xl font-bold">{currentQuestion?.question}</p>
             </div>
 
             {/* Options */}
             <div className="space-y-3">
-              {currentQuestion.options.map((option, index) => (
+              {currentQuestion?.options.map((option, index) => (
                 <motion.button
                   key={index}
                   onClick={() => handleSelectAnswer(index)}
@@ -247,15 +212,15 @@ const Lesson = () => {
                     "w-full rounded-xl border-2 p-4 text-left font-semibold transition-all",
                     "hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary",
                     selectedAnswer === index && !isAnswered && "border-primary bg-primary/10",
-                    isAnswered && index === currentQuestion.correctIndex && "border-primary bg-primary/20",
+                    isAnswered && index === currentQuestion.correct_index && "border-green-500 bg-green-500/20",
                     isAnswered && selectedAnswer === index && !isCorrect && "border-destructive bg-destructive/20"
                   )}
                   whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex items-center justify-between">
                     <span>{option}</span>
-                    {isAnswered && index === currentQuestion.correctIndex && (
-                      <CheckCircle2 className="size-5 text-primary" />
+                    {isAnswered && index === currentQuestion.correct_index && (
+                      <CheckCircle2 className="size-5 text-green-500" />
                     )}
                     {isAnswered && selectedAnswer === index && !isCorrect && (
                       <XCircle className="size-5 text-destructive" />
@@ -281,27 +246,41 @@ const Lesson = () => {
               Kiểm tra
             </Button>
           ) : (
-            <div className="space-y-3">
+            <motion.div 
+              className="space-y-3"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               <Card
                 className={cn(
-                  "p-3",
-                  isCorrect ? "border-primary bg-primary/10" : "border-destructive bg-destructive/10"
+                  "p-4",
+                  isCorrect ? "border-green-500 bg-green-500/10" : "border-destructive bg-destructive/10"
                 )}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-start gap-3">
                   {isCorrect ? (
-                    <>
-                      <CheckCircle2 className="size-5 text-primary" />
-                      <span className="font-bold text-primary">Chính xác!</span>
-                    </>
+                    <Sparkles className="size-6 shrink-0 text-green-500" />
                   ) : (
-                    <>
-                      <XCircle className="size-5 text-destructive" />
-                      <span className="font-bold text-destructive">
-                        Sai rồi! Đáp án đúng: {currentQuestion.options[currentQuestion.correctIndex]}
-                      </span>
-                    </>
+                    <XCircle className="size-6 shrink-0 text-destructive" />
                   )}
+                  <div className="flex-1">
+                    <p className={cn(
+                      "font-bold",
+                      isCorrect ? "text-green-600" : "text-destructive"
+                    )}>
+                      {isCorrect ? "🎉 Chính xác!" : "Sai rồi!"}
+                    </p>
+                    {!isCorrect && currentQuestion && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Đáp án đúng: <span className="font-semibold">{currentQuestion.options[currentQuestion.correct_index]}</span>
+                      </p>
+                    )}
+                    {currentQuestion?.explanation && (
+                      <p className="mt-2 text-sm text-foreground/80">
+                        💡 {currentQuestion.explanation}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </Card>
               <Button
@@ -312,7 +291,7 @@ const Lesson = () => {
               >
                 Tiếp tục
               </Button>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
