@@ -241,7 +241,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      questions_public: {
+        Row: {
+          created_at: string | null
+          explanation: string | null
+          id: string | null
+          is_active: boolean | null
+          lesson_id: string | null
+          options: Json | null
+          order_index: number | null
+          question: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          explanation?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          lesson_id?: string | null
+          options?: Json | null
+          order_index?: number | null
+          question?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          explanation?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          lesson_id?: string | null
+          options?: Json | null
+          order_index?: number | null
+          question?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
