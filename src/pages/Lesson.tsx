@@ -15,9 +15,15 @@ interface Question {
   id: string;
   question: string;
   options: string[];
-  correct_index: number;
   explanation: string | null;
   order_index: number;
+}
+
+interface AnswerResult {
+  isCorrect: boolean;
+  correctIndex: number;
+  correctAnswer: string;
+  explanation: string | null;
 }
 
 const Lesson = () => {
@@ -29,8 +35,10 @@ const Lesson = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [answerResult, setAnswerResult] = useState<AnswerResult | null>(null);
   const [hearts, setHearts] = useState(5);
   const [correctCount, setCorrectCount] = useState(0);
+  const [isChecking, setIsChecking] = useState(false);
 
   // Fetch lesson details
   const { data: lesson, isLoading: lessonLoading } = useQuery({
@@ -47,12 +55,12 @@ const Lesson = () => {
     enabled: !!lessonId,
   });
 
-  // Fetch questions from database
+  // Fetch questions from database using the public view (no correct_index)
   const { data: questions, isLoading: questionsLoading } = useQuery({
     queryKey: ["questions", lessonId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("questions")
+        .from("questions_public")
         .select("*")
         .eq("lesson_id", lessonId)
         .eq("is_active", true)
@@ -74,21 +82,47 @@ const Lesson = () => {
   const progress = totalQuestions > 0 ? ((currentQuestionIndex) / totalQuestions) * 100 : 0;
 
   const handleSelectAnswer = (index: number) => {
-    if (isAnswered) return;
+    if (isAnswered || isChecking) return;
     setSelectedAnswer(index);
   };
 
-  const handleCheckAnswer = () => {
-    if (selectedAnswer === null || !currentQuestion) return;
+  const handleCheckAnswer = async () => {
+    if (selectedAnswer === null || !currentQuestion || isChecking) return;
 
-    const correct = selectedAnswer === currentQuestion.correct_index;
-    setIsCorrect(correct);
-    setIsAnswered(true);
+    setIsChecking(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
 
-    if (correct) {
-      setCorrectCount((prev) => prev + 1);
-    } else {
-      setHearts((prev) => prev - 1);
+      if (!token) {
+        toast.error("Vui lòng đăng nhập để tiếp tục");
+        navigate("/login");
+        return;
+      }
+
+      const response = await supabase.functions.invoke("verify-answer", {
+        body: { questionId: currentQuestion.id, selectedIndex: selectedAnswer },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const result = response.data as AnswerResult;
+      setAnswerResult(result);
+      setIsCorrect(result.isCorrect);
+      setIsAnswered(true);
+
+      if (result.isCorrect) {
+        setCorrectCount((prev) => prev + 1);
+      } else {
+        setHearts((prev) => prev - 1);
+      }
+    } catch (error) {
+      console.error("Error verifying answer:", error);
+      toast.error("Có lỗi xảy ra, vui lòng thử lại");
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -212,14 +246,14 @@ const Lesson = () => {
                     "w-full rounded-xl border-2 p-4 text-left font-semibold transition-all",
                     "hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary",
                     selectedAnswer === index && !isAnswered && "border-primary bg-primary/10",
-                    isAnswered && index === currentQuestion.correct_index && "border-green-500 bg-green-500/20",
+                    isAnswered && answerResult && index === answerResult.correctIndex && "border-green-500 bg-green-500/20",
                     isAnswered && selectedAnswer === index && !isCorrect && "border-destructive bg-destructive/20"
                   )}
                   whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex items-center justify-between">
                     <span>{option}</span>
-                    {isAnswered && index === currentQuestion.correct_index && (
+                    {isAnswered && answerResult && index === answerResult.correctIndex && (
                       <CheckCircle2 className="size-5 text-green-500" />
                     )}
                     {isAnswered && selectedAnswer === index && !isCorrect && (
@@ -239,11 +273,11 @@ const Lesson = () => {
           {!isAnswered ? (
             <Button
               onClick={handleCheckAnswer}
-              disabled={selectedAnswer === null}
+              disabled={selectedAnswer === null || isChecking}
               className="w-full"
               size="lg"
             >
-              Kiểm tra
+              {isChecking ? "Đang kiểm tra..." : "Kiểm tra"}
             </Button>
           ) : (
             <motion.div 
@@ -270,14 +304,14 @@ const Lesson = () => {
                     )}>
                       {isCorrect ? "🎉 Chính xác!" : "Sai rồi!"}
                     </p>
-                    {!isCorrect && currentQuestion && (
+                    {!isCorrect && answerResult && (
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Đáp án đúng: <span className="font-semibold">{currentQuestion.options[currentQuestion.correct_index]}</span>
+                        Đáp án đúng: <span className="font-semibold">{answerResult.correctAnswer}</span>
                       </p>
                     )}
-                    {currentQuestion?.explanation && (
+                    {answerResult?.explanation && (
                       <p className="mt-2 text-sm text-foreground/80">
-                        💡 {currentQuestion.explanation}
+                        💡 {answerResult.explanation}
                       </p>
                     )}
                   </div>
