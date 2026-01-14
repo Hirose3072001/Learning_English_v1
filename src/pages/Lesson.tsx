@@ -164,14 +164,33 @@ const Lesson = () => {
             console.error(progressError);
             toast.error("Có lỗi khi lưu tiến độ");
           } else {
-            // Get current profile XP and update
-            const { data: profile } = await supabase
+            // Update XP (fallback-safe even if profile row was missing)
+            const { data: profile, error: profileError } = await supabase
               .from("profiles")
               .select("xp")
               .eq("user_id", user.id)
-              .single();
+              .maybeSingle();
 
-            if (profile) {
+            if (profileError) {
+              console.error("Error reading profile XP:", profileError);
+            }
+
+            if (!profile) {
+              const meta = user.user_metadata as { username?: string; display_name?: string; full_name?: string } | null;
+              const username = (meta?.username || user.email?.split("@")[0] || `user_${user.id.slice(0, 8)}`).toLowerCase();
+              const display_name = meta?.display_name || meta?.full_name || user.email?.split("@")[0] || username;
+
+              const { error: insertError } = await supabase.from("profiles").insert({
+                user_id: user.id,
+                username,
+                display_name,
+                xp: lesson.xp_reward,
+              });
+
+              if (insertError) {
+                console.error("Error creating profile:", insertError);
+              }
+            } else {
               const newXp = (profile.xp || 0) + lesson.xp_reward;
               const { error: xpError } = await supabase
                 .from("profiles")

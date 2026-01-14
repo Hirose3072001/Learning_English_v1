@@ -18,11 +18,12 @@ interface LeaderboardUser {
 }
 
 const Leaderboard = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   // Fetch profiles from leaderboard view ordered by XP
   const { data: profiles, isLoading } = useQuery({
-    queryKey: ["leaderboard"],
+    queryKey: ["leaderboard", user?.id],
+    enabled: !loading,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles_leaderboard")
