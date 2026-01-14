@@ -138,6 +138,7 @@ const Lesson = () => {
       setSelectedAnswer(null);
       setIsAnswered(false);
       setIsCorrect(false);
+      setAnswerResult(null);
     } else {
       // Lesson completed!
       if (user && lesson) {
@@ -150,7 +151,8 @@ const Lesson = () => {
           .maybeSingle();
 
         if (!existingProgress) {
-          const { error } = await supabase.from("user_progress").insert({
+          // Insert progress
+          const { error: progressError } = await supabase.from("user_progress").insert({
             user_id: user.id,
             lesson_id: lesson.id,
             completed: true,
@@ -158,10 +160,29 @@ const Lesson = () => {
             score: Math.round((correctCount / totalQuestions) * 100),
           });
 
-          if (error) {
-            console.error(error);
+          if (progressError) {
+            console.error(progressError);
             toast.error("Có lỗi khi lưu tiến độ");
           } else {
+            // Get current profile XP and update
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("xp")
+              .eq("user_id", user.id)
+              .single();
+
+            if (profile) {
+              const newXp = (profile.xp || 0) + lesson.xp_reward;
+              const { error: xpError } = await supabase
+                .from("profiles")
+                .update({ xp: newXp })
+                .eq("user_id", user.id);
+
+              if (xpError) {
+                console.error("Error updating XP:", xpError);
+              }
+            }
+
             toast.success(`🎉 Hoàn thành bài học!`, {
               description: `Điểm: ${Math.round((correctCount / totalQuestions) * 100)}% | +${lesson.xp_reward} XP`,
             });
