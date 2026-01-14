@@ -241,6 +241,33 @@ export type Database = {
       }
     }
     Views: {
+      profiles_leaderboard: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string | null
+          user_id: string | null
+          username: string | null
+          xp: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          display_name?: string | null
+          id?: string | null
+          user_id?: string | null
+          username?: string | null
+          xp?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          display_name?: string | null
+          id?: string | null
+          user_id?: string | null
+          username?: string | null
+          xp?: number | null
+        }
+        Relationships: []
+      }
       questions_public: {
         Row: {
           created_at: string | null

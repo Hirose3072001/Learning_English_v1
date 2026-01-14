@@ -20,12 +20,12 @@ interface LeaderboardUser {
 const Leaderboard = () => {
   const { user } = useAuth();
 
-  // Fetch all profiles ordered by XP
+  // Fetch profiles from leaderboard view ordered by XP
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["leaderboard"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("profiles_leaderboard")
         .select("id, user_id, username, display_name, avatar_url, xp")
         .order("xp", { ascending: false })
         .limit(50);
