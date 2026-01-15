@@ -69,6 +69,7 @@ export type Database = {
           gems: number
           hearts: number
           id: string
+          last_activity_date: string | null
           streak_count: number
           updated_at: string
           user_id: string
@@ -82,6 +83,7 @@ export type Database = {
           gems?: number
           hearts?: number
           id?: string
+          last_activity_date?: string | null
           streak_count?: number
           updated_at?: string
           user_id: string
@@ -95,6 +97,7 @@ export type Database = {
           gems?: number
           hearts?: number
           id?: string
+          last_activity_date?: string | null
           streak_count?: number
           updated_at?: string
           user_id?: string
@@ -149,6 +152,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      quests: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          reward_gems: number
+          target_type: string
+          target_value: number
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          reward_gems?: number
+          target_type: string
+          target_value?: number
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          reward_gems?: number
+          target_type?: string
+          target_value?: number
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       units: {
         Row: {
@@ -214,6 +259,50 @@ export type Database = {
             columns: ["lesson_id"]
             isOneToOne: false
             referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_quests: {
+        Row: {
+          claimed: boolean
+          completed: boolean
+          created_at: string
+          id: string
+          period_start: string
+          progress: number
+          quest_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          claimed?: boolean
+          completed?: boolean
+          created_at?: string
+          id?: string
+          period_start: string
+          progress?: number
+          quest_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          claimed?: boolean
+          completed?: boolean
+          created_at?: string
+          id?: string
+          period_start?: string
+          progress?: number
+          quest_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_quests_quest_id_fkey"
+            columns: ["quest_id"]
+            isOneToOne: false
+            referencedRelation: "quests"
             referencedColumns: ["id"]
           },
         ]

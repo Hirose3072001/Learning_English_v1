@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
-import { X, Heart, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+import { X, Heart, CheckCircle2, XCircle, Sparkles, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSpeech } from "@/hooks/useSpeech";
 
 interface Question {
   id: string;
@@ -30,6 +31,7 @@ const Lesson = () => {
   const { lessonId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { speak } = useSpeech();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -39,6 +41,11 @@ const Lesson = () => {
   const [hearts, setHearts] = useState(5);
   const [correctCount, setCorrectCount] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
+
+  // Preload voices on mount
+  useEffect(() => {
+    window.speechSynthesis.getVoices();
+  }, []);
 
   // Fetch lesson details
   const { data: lesson, isLoading: lessonLoading } = useQuery({
@@ -81,9 +88,11 @@ const Lesson = () => {
   const totalQuestions = questions?.length || 0;
   const progress = totalQuestions > 0 ? ((currentQuestionIndex) / totalQuestions) * 100 : 0;
 
-  const handleSelectAnswer = (index: number) => {
+  const handleSelectAnswer = (index: number, optionText: string) => {
     if (isAnswered || isChecking) return;
     setSelectedAnswer(index);
+    // Speak the option when selected
+    speak(optionText);
   };
 
   const handleCheckAnswer = async () => {
@@ -280,7 +289,7 @@ const Lesson = () => {
               {currentQuestion?.options.map((option, index) => (
                 <motion.button
                   key={index}
-                  onClick={() => handleSelectAnswer(index)}
+                  onClick={() => handleSelectAnswer(index, option)}
                   disabled={isAnswered}
                   className={cn(
                     "w-full rounded-xl border-2 p-4 text-left font-semibold transition-all",
@@ -292,7 +301,20 @@ const Lesson = () => {
                   whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex items-center justify-between">
-                    <span>{option}</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speak(option);
+                        }}
+                      >
+                        <Volume2 className="size-4" />
+                      </Button>
+                      <span>{option}</span>
+                    </div>
                     {isAnswered && answerResult && index === answerResult.correctIndex && (
                       <CheckCircle2 className="size-5 text-green-500" />
                     )}
