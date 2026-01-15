@@ -34,7 +34,7 @@ const Learn = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Fetch units
+  // Fetch units with caching
   const { data: units, isLoading: unitsLoading } = useQuery({
     queryKey: ["units"],
     queryFn: async () => {
@@ -46,9 +46,10 @@ const Learn = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 
-  // Fetch all lessons
+  // Fetch all lessons with caching
   const { data: lessons, isLoading: lessonsLoading } = useQuery({
     queryKey: ["all-lessons"],
     queryFn: async () => {
@@ -60,6 +61,7 @@ const Learn = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 
   // Fetch user progress
