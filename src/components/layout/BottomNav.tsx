@@ -1,10 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { BookOpen, Trophy, Target, User, Languages } from "lucide-react";
+import { BookOpen, Trophy, Target, User, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/learn", icon: BookOpen, label: "Học" },
-  { to: "/alphabet", icon: Languages, label: "Bảng chữ" },
+  { to: "/flashcards", icon: Layers, label: "Flashcard" },
   { to: "/leaderboard", icon: Trophy, label: "Xếp hạng" },
   { to: "/quests", icon: Target, label: "Nhiệm vụ" },
   { to: "/profile", icon: User, label: "Hồ sơ" },
