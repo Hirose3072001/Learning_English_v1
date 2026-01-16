@@ -14,6 +14,7 @@ import Register from "./pages/Register";
 import Learn from "./pages/Learn";
 import Lesson from "./pages/Lesson";
 import Alphabet from "./pages/Alphabet";
+import Flashcards from "./pages/Flashcards";
 import Leaderboard from "./pages/Leaderboard";
 import Quests from "./pages/Quests";
 import Profile from "./pages/Profile";
@@ -91,6 +92,7 @@ const App = () => (
             <Route path="/learn" element={<Learn />} />
             <Route path="/lesson/:lessonId" element={<Lesson />} />
             <Route path="/alphabet" element={<Alphabet />} />
+            <Route path="/flashcards" element={<Flashcards />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/quests" element={<Quests />} />
             <Route path="/profile" element={<Profile />} />
