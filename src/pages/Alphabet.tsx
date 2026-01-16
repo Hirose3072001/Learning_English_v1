@@ -117,7 +117,7 @@ const Alphabet = () => {
             Phụ âm (Consonants) - 21 chữ
           </h2>
         </div>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
           {consonants.map((item, index) => (
             <LetterCard key={item.letter} item={item} index={index + 5} speak={speak} />
           ))}

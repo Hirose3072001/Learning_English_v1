@@ -1,8 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, ChevronDown, Lightbulb, Target, List } from "lucide-react";
+import { ChevronDown, BookOpen, Volume2 } from "lucide-react";
 import { useState } from "react";
+import { useSpeech } from "@/hooks/useSpeech";
 
 interface Lesson {
   id: string;
@@ -17,9 +18,43 @@ interface UnitGuideProps {
   lessons: Lesson[];
 }
 
+// Sample vocabulary data - in real app, this would come from database
+const unitVocabulary: Record<string, { word: string; meaning: string; pronunciation: string }[]> = {
+  "Đơn vị 1": [
+    { word: "Hello", meaning: "Xin chào", pronunciation: "/həˈloʊ/" },
+    { word: "Goodbye", meaning: "Tạm biệt", pronunciation: "/ˌɡʊdˈbaɪ/" },
+    { word: "Thank you", meaning: "Cảm ơn", pronunciation: "/θæŋk juː/" },
+    { word: "Please", meaning: "Làm ơn", pronunciation: "/pliːz/" },
+    { word: "Yes", meaning: "Vâng/Có", pronunciation: "/jes/" },
+    { word: "No", meaning: "Không", pronunciation: "/noʊ/" },
+    { word: "Sorry", meaning: "Xin lỗi", pronunciation: "/ˈsɑːri/" },
+    { word: "Excuse me", meaning: "Xin phép", pronunciation: "/ɪkˈskjuːz miː/" },
+  ],
+  "Đơn vị 2": [
+    { word: "I", meaning: "Tôi", pronunciation: "/aɪ/" },
+    { word: "You", meaning: "Bạn", pronunciation: "/juː/" },
+    { word: "He", meaning: "Anh ấy", pronunciation: "/hiː/" },
+    { word: "She", meaning: "Cô ấy", pronunciation: "/ʃiː/" },
+    { word: "We", meaning: "Chúng tôi", pronunciation: "/wiː/" },
+    { word: "They", meaning: "Họ", pronunciation: "/ðeɪ/" },
+    { word: "It", meaning: "Nó", pronunciation: "/ɪt/" },
+  ],
+};
+
+const defaultVocabulary = [
+  { word: "Apple", meaning: "Quả táo", pronunciation: "/ˈæp.əl/" },
+  { word: "Book", meaning: "Quyển sách", pronunciation: "/bʊk/" },
+  { word: "Cat", meaning: "Con mèo", pronunciation: "/kæt/" },
+  { word: "Dog", meaning: "Con chó", pronunciation: "/dɔːɡ/" },
+  { word: "House", meaning: "Ngôi nhà", pronunciation: "/haʊs/" },
+  { word: "Water", meaning: "Nước", pronunciation: "/ˈwɔː.tər/" },
+];
+
 const UnitGuide = ({ unitTitle, unitDescription, lessons }: UnitGuideProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { speak } = useSpeech();
 
+  const vocabulary = unitVocabulary[unitTitle] || defaultVocabulary;
   const totalXP = lessons.reduce((acc, l) => acc + l.xp_reward, 0);
 
   return (
@@ -31,12 +66,12 @@ const UnitGuide = ({ unitTitle, unitDescription, lessons }: UnitGuideProps) => {
       >
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-lg bg-primary/20">
-            <Lightbulb className="size-5 text-primary" />
+            <BookOpen className="size-5 text-primary" />
           </div>
           <div className="text-left">
-            <p className="font-semibold text-primary">Hướng dẫn</p>
+            <p className="font-semibold text-primary">Từ vựng trong đơn vị</p>
             <p className="text-xs text-muted-foreground">
-              {lessons.length} bài học • {totalXP} XP
+              {vocabulary.length} từ vựng • {lessons.length} bài học
             </p>
           </div>
         </div>
@@ -57,62 +92,49 @@ const UnitGuide = ({ unitTitle, unitDescription, lessons }: UnitGuideProps) => {
             className="overflow-hidden"
           >
             <Card className="mt-2 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-              <div className="p-4 space-y-4">
-                {/* Unit Overview */}
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="size-4 text-primary" />
-                    <h3 className="font-semibold">Mục tiêu</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {unitDescription || `Hoàn thành ${lessons.length} bài học trong đơn vị "${unitTitle}" để nắm vững kiến thức cơ bản.`}
-                  </p>
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Từ vựng sẽ học</h3>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    {vocabulary.length} từ
+                  </span>
                 </div>
 
-                {/* Lessons List */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <List className="size-4 text-primary" />
-                    <h3 className="font-semibold">Nội dung bài học</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {lessons.map((lesson, index) => (
-                      <div
-                        key={lesson.id}
-                        className="flex items-start gap-3 rounded-lg bg-background/50 p-3 border"
+                {/* Vocabulary Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {vocabulary.map((item, index) => (
+                    <motion.div
+                      key={item.word}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="flex items-center gap-3 rounded-lg bg-background/80 p-3 border hover:border-primary/50 transition-colors group"
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => speak(item.word)}
+                        className="size-8 shrink-0 opacity-60 group-hover:opacity-100 hover:bg-primary/20"
                       >
-                        <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
-                          {index + 1}
+                        <Volume2 className="size-4 text-primary" />
+                      </Button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-semibold text-primary">{item.word}</span>
+                          <span className="text-xs text-muted-foreground">{item.pronunciation}</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{lesson.title}</p>
-                          {lesson.description && (
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                              {lesson.description}
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-xs font-medium text-primary shrink-0">
-                          +{lesson.xp_reward} XP
-                        </span>
+                        <p className="text-sm text-muted-foreground">{item.meaning}</p>
                       </div>
-                    ))}
-                  </div>
+                    </motion.div>
+                  ))}
                 </div>
 
-                {/* Tips */}
-                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3 border border-amber-200 dark:border-amber-800">
-                  <div className="flex items-center gap-2 mb-1">
-                    <BookOpen className="size-4 text-amber-600 dark:text-amber-400" />
-                    <h4 className="font-medium text-amber-700 dark:text-amber-300 text-sm">
-                      Mẹo học tập
-                    </h4>
-                  </div>
-                  <ul className="text-xs text-amber-700/80 dark:text-amber-300/80 space-y-1 ml-6 list-disc">
-                    <li>Hoàn thành các bài học theo thứ tự để hiểu bài tốt hơn</li>
-                    <li>Nghe phát âm và lặp lại nhiều lần</li>
-                    <li>Ôn tập bài cũ trước khi học bài mới</li>
-                  </ul>
+                {/* Summary */}
+                <div className="mt-4 pt-3 border-t flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    💡 Nhấn vào icon loa để nghe phát âm
+                  </span>
+                  <span className="font-medium text-primary">+{totalXP} XP</span>
                 </div>
               </div>
             </Card>
