@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import UnitGuide from "@/components/learn/UnitGuide";
 
 interface LessonWithProgress {
   id: string;
@@ -201,6 +202,18 @@ const Learn = () => {
 
             {/* Lessons Grid */}
             <div className="p-4 grid gap-3">
+              {/* Unit Guide */}
+              <UnitGuide
+                unitTitle={unit.title}
+                unitDescription={unit.description}
+                lessons={unit.lessons.map((l) => ({
+                  id: l.id,
+                  title: l.title,
+                  description: l.description,
+                  xp_reward: l.xp_reward,
+                }))}
+              />
+
               {unit.lessons.map((lesson, lessonIndex) => (
                 <LessonCard 
                   key={lesson.id} 
