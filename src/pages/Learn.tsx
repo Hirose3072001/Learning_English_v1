@@ -256,7 +256,8 @@ const LessonCard = ({
       toast.error("Hoàn thành bài trước để mở khóa!");
       return;
     }
-    navigate(`/lesson/${lesson.id}`);
+    // Navigate to flashcards first to learn vocabulary before quiz
+    navigate(`/lesson/${lesson.id}/flashcards`);
   };
 
   const getIcon = () => {

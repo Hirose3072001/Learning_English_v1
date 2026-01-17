@@ -328,6 +328,56 @@ export type Database = {
         }
         Relationships: []
       }
+      vocabulary: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          example: string | null
+          id: string
+          is_active: boolean
+          lesson_id: string
+          meaning: string
+          order_index: number
+          pronunciation: string | null
+          updated_at: string
+          word: string
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          example?: string | null
+          id?: string
+          is_active?: boolean
+          lesson_id: string
+          meaning: string
+          order_index?: number
+          pronunciation?: string | null
+          updated_at?: string
+          word: string
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          example?: string | null
+          id?: string
+          is_active?: boolean
+          lesson_id?: string
+          meaning?: string
+          order_index?: number
+          pronunciation?: string | null
+          updated_at?: string
+          word?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vocabulary_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       profiles_leaderboard: {

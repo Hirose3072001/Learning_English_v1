@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Users, BookOpen, Layers, ArrowLeft, Shield, Trash2, Plus } from "lucide-react";
+import { Users, BookOpen, Layers, ArrowLeft, Shield, BookText } from "lucide-react";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminUnits } from "@/components/admin/AdminUnits";
 import { AdminLessons } from "@/components/admin/AdminLessons";
+import AdminVocabulary from "@/components/admin/AdminVocabulary";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -118,18 +119,22 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-muted">
+          <TabsList className="grid w-full grid-cols-4 bg-muted">
             <TabsTrigger value="users" className="gap-2">
               <Users className="size-4" />
-              Người dùng
+              <span className="hidden sm:inline">Người dùng</span>
             </TabsTrigger>
             <TabsTrigger value="units" className="gap-2">
               <Layers className="size-4" />
-              Khóa học
+              <span className="hidden sm:inline">Khóa học</span>
             </TabsTrigger>
             <TabsTrigger value="lessons" className="gap-2">
               <BookOpen className="size-4" />
-              Bài học
+              <span className="hidden sm:inline">Bài học</span>
+            </TabsTrigger>
+            <TabsTrigger value="vocabulary" className="gap-2">
+              <BookText className="size-4" />
+              <span className="hidden sm:inline">Từ vựng</span>
             </TabsTrigger>
           </TabsList>
 
@@ -143,6 +148,10 @@ const Admin = () => {
 
           <TabsContent value="lessons">
             <AdminLessons onUpdate={fetchStats} />
+          </TabsContent>
+
+          <TabsContent value="vocabulary">
+            <AdminVocabulary onUpdate={fetchStats} />
           </TabsContent>
         </Tabs>
       </main>

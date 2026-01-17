@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, BookOpen, Volume2 } from "lucide-react";
 import { useState } from "react";
 import { useSpeech } from "@/hooks/useSpeech";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Lesson {
   id: string;
@@ -18,44 +20,45 @@ interface UnitGuideProps {
   lessons: Lesson[];
 }
 
-// Sample vocabulary data - in real app, this would come from database
-const unitVocabulary: Record<string, { word: string; meaning: string; pronunciation: string }[]> = {
-  "Đơn vị 1": [
-    { word: "Hello", meaning: "Xin chào", pronunciation: "/həˈloʊ/" },
-    { word: "Goodbye", meaning: "Tạm biệt", pronunciation: "/ˌɡʊdˈbaɪ/" },
-    { word: "Thank you", meaning: "Cảm ơn", pronunciation: "/θæŋk juː/" },
-    { word: "Please", meaning: "Làm ơn", pronunciation: "/pliːz/" },
-    { word: "Yes", meaning: "Vâng/Có", pronunciation: "/jes/" },
-    { word: "No", meaning: "Không", pronunciation: "/noʊ/" },
-    { word: "Sorry", meaning: "Xin lỗi", pronunciation: "/ˈsɑːri/" },
-    { word: "Excuse me", meaning: "Xin phép", pronunciation: "/ɪkˈskjuːz miː/" },
-  ],
-  "Đơn vị 2": [
-    { word: "I", meaning: "Tôi", pronunciation: "/aɪ/" },
-    { word: "You", meaning: "Bạn", pronunciation: "/juː/" },
-    { word: "He", meaning: "Anh ấy", pronunciation: "/hiː/" },
-    { word: "She", meaning: "Cô ấy", pronunciation: "/ʃiː/" },
-    { word: "We", meaning: "Chúng tôi", pronunciation: "/wiː/" },
-    { word: "They", meaning: "Họ", pronunciation: "/ðeɪ/" },
-    { word: "It", meaning: "Nó", pronunciation: "/ɪt/" },
-  ],
-};
-
-const defaultVocabulary = [
-  { word: "Apple", meaning: "Quả táo", pronunciation: "/ˈæp.əl/" },
-  { word: "Book", meaning: "Quyển sách", pronunciation: "/bʊk/" },
-  { word: "Cat", meaning: "Con mèo", pronunciation: "/kæt/" },
-  { word: "Dog", meaning: "Con chó", pronunciation: "/dɔːɡ/" },
-  { word: "House", meaning: "Ngôi nhà", pronunciation: "/haʊs/" },
-  { word: "Water", meaning: "Nước", pronunciation: "/ˈwɔː.tər/" },
-];
+interface VocabularyWord {
+  id: string;
+  word: string;
+  meaning: string;
+  pronunciation: string | null;
+  lesson_id: string;
+}
 
 const UnitGuide = ({ unitTitle, unitDescription, lessons }: UnitGuideProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { speak } = useSpeech();
 
-  const vocabulary = unitVocabulary[unitTitle] || defaultVocabulary;
+  // Get all lesson IDs in this unit
+  const lessonIds = lessons.map((l) => l.id);
+
+  // Fetch vocabulary for all lessons in this unit
+  const { data: vocabulary = [] } = useQuery({
+    queryKey: ["unit-vocabulary", lessonIds],
+    queryFn: async () => {
+      if (lessonIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("vocabulary")
+        .select("*")
+        .in("lesson_id", lessonIds)
+        .eq("is_active", true)
+        .order("order_index");
+      if (error) throw error;
+      return data as VocabularyWord[];
+    },
+    enabled: lessonIds.length > 0,
+  });
+
   const totalXP = lessons.reduce((acc, l) => acc + l.xp_reward, 0);
+
+  // Group vocabulary by lesson
+  const vocabByLesson = lessons.map((lesson) => ({
+    lesson,
+    words: vocabulary.filter((v) => v.lesson_id === lesson.id),
+  }));
 
   return (
     <div className="mb-3">
@@ -93,41 +96,60 @@ const UnitGuide = ({ unitTitle, unitDescription, lessons }: UnitGuideProps) => {
           >
             <Card className="mt-2 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
               <div className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">Từ vựng sẽ học</h3>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                    {vocabulary.length} từ
-                  </span>
-                </div>
+                {vocabByLesson.map(({ lesson, words }) => (
+                  <div key={lesson.id} className="mb-4 last:mb-0">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-sm">{lesson.title}</h3>
+                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                        {words.length} từ
+                      </span>
+                    </div>
 
-                {/* Vocabulary Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {vocabulary.map((item, index) => (
-                    <motion.div
-                      key={item.word}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex items-center gap-3 rounded-lg bg-background/80 p-3 border hover:border-primary/50 transition-colors group"
-                    >
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => speak(item.word)}
-                        className="size-8 shrink-0 opacity-60 group-hover:opacity-100 hover:bg-primary/20"
-                      >
-                        <Volume2 className="size-4 text-primary" />
-                      </Button>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-2">
-                          <span className="font-semibold text-primary">{item.word}</span>
-                          <span className="text-xs text-muted-foreground">{item.pronunciation}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{item.meaning}</p>
+                    {words.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {words.map((item, index) => (
+                          <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.03 }}
+                            className="flex items-center gap-3 rounded-lg bg-background/80 p-3 border hover:border-primary/50 transition-colors group"
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => speak(item.word)}
+                              className="size-8 shrink-0 opacity-60 group-hover:opacity-100 hover:bg-primary/20"
+                            >
+                              <Volume2 className="size-4 text-primary" />
+                            </Button>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline gap-2">
+                                <span className="font-semibold text-primary">{item.word}</span>
+                                {item.pronunciation && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.pronunciation}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{item.meaning}</p>
+                            </div>
+                          </motion.div>
+                        ))}
                       </div>
-                    </motion.div>
-                  ))}
-                </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        Chưa có từ vựng
+                      </p>
+                    )}
+                  </div>
+                ))}
+
+                {vocabulary.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Đơn vị này chưa có từ vựng nào
+                  </p>
+                )}
 
                 {/* Summary */}
                 <div className="mt-4 pt-3 border-t flex items-center justify-between text-sm">
