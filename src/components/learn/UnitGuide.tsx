@@ -263,66 +263,10 @@ const UnitGuide = ({ unitTitle, unitDescription, lessons, unitId, unitOrderIndex
                   </Button>
                 </div>
 
-                {/* Vocabulary List */}
-                {vocabByLesson.map(({ lesson, words }, lessonIndex) => (
-                  <div key={lesson.id} className="mb-4 last:mb-0">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-sm">{lessonIndex + 1}. {lesson.title}</h3>
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                        {words.length} từ
-                      </span>
-                    </div>
-
-                    {words.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {words.map((item, index) => (
-                          <motion.div
-                            key={item.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.03 }}
-                            className="flex items-center gap-3 rounded-lg bg-background/80 p-3 border hover:border-primary/50 transition-colors group"
-                          >
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => speak(item.word)}
-                              className="size-8 shrink-0 opacity-60 group-hover:opacity-100 hover:bg-primary/20"
-                            >
-                              <Volume2 className="size-4 text-primary" />
-                            </Button>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-baseline gap-2">
-                                <span className="font-semibold text-primary">{item.word}</span>
-                                {item.pronunciation && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {item.pronunciation}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground">{item.meaning}</p>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">
-                        Chưa có từ vựng
-                      </p>
-                    )}
-                  </div>
-                ))}
-
-                {vocabulary.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    Chương này chưa có từ vựng nào
-                  </p>
-                )}
-
                 {/* Summary */}
-                <div className="mt-4 pt-3 border-t flex items-center justify-between text-sm">
+                <div className="mt-2 pt-3 border-t flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
-                    💡 Nhấn vào icon loa để nghe phát âm
+                    💡 Học từ vựng trước khi làm bài kiểm tra
                   </span>
                   <span className="font-medium text-primary">+{totalXP} XP</span>
                 </div>
