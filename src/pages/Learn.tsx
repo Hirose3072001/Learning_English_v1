@@ -182,7 +182,7 @@ const Learn = () => {
             <div className="border-b border-border bg-muted/50 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="font-bold text-lg">{unit.title}</h2>
+                  <h2 className="font-bold text-lg">Chương {unit.order_index}</h2>
                   {unit.description && (
                     <p className="text-sm text-muted-foreground">{unit.description}</p>
                   )}
@@ -310,7 +310,7 @@ const LessonCard = ({
             isCurrent && "text-primary",
             isLocked && "text-muted-foreground"
           )}>
-            {lesson.title}
+            {index + 1}. {lesson.title}
           </p>
           {lesson.description && (
             <p className="text-sm text-muted-foreground line-clamp-1">

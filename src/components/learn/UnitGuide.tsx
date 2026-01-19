@@ -72,7 +72,7 @@ const UnitGuide = ({ unitTitle, unitDescription, lessons }: UnitGuideProps) => {
             <BookOpen className="size-5 text-primary" />
           </div>
           <div className="text-left">
-            <p className="font-semibold text-primary">Từ vựng trong đơn vị</p>
+            <p className="font-semibold text-primary">Từ vựng trong chương</p>
             <p className="text-xs text-muted-foreground">
               {vocabulary.length} từ vựng • {lessons.length} bài học
             </p>
@@ -96,10 +96,10 @@ const UnitGuide = ({ unitTitle, unitDescription, lessons }: UnitGuideProps) => {
           >
             <Card className="mt-2 border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
               <div className="p-4">
-                {vocabByLesson.map(({ lesson, words }) => (
+                {vocabByLesson.map(({ lesson, words }, lessonIndex) => (
                   <div key={lesson.id} className="mb-4 last:mb-0">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-sm">{lesson.title}</h3>
+                      <h3 className="font-semibold text-sm">{lessonIndex + 1}. {lesson.title}</h3>
                       <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
                         {words.length} từ
                       </span>
