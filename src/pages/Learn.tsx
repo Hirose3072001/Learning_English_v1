@@ -206,6 +206,8 @@ const Learn = () => {
               <UnitGuide
                 unitTitle={unit.title}
                 unitDescription={unit.description}
+                unitId={unit.id}
+                unitOrderIndex={unit.order_index}
                 lessons={unit.lessons.map((l) => ({
                   id: l.id,
                   title: l.title,
@@ -256,8 +258,8 @@ const LessonCard = ({
       toast.error("Hoàn thành bài trước để mở khóa!");
       return;
     }
-    // Navigate to flashcards first to learn vocabulary before quiz
-    navigate(`/lesson/${lesson.id}/flashcards`);
+    // Navigate directly to lesson/quiz
+    navigate(`/lesson/${lesson.id}`);
   };
 
   const getIcon = () => {
