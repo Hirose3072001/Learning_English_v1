@@ -38,10 +38,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, Loader2, Volume2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Volume2, Upload, Download } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSpeech } from "@/hooks/useSpeech";
+import * as XLSX from "xlsx";
 
 interface Unit {
   id: string;
@@ -202,6 +203,78 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
     }
   };
 
+  const handleExportVocab = () => {
+    const exportData = filteredVocabulary.map((v, index) => ({
+      STT: index + 1,
+      "Chương": v.lessons?.units?.title || "",
+      "Bài học": v.lessons?.title || "",
+      "Từ vựng": v.word,
+      "Nghĩa": v.meaning,
+      "Phát âm": v.pronunciation || "",
+      "Ví dụ": v.example || "",
+      "Trạng thái": v.is_active ? "Hiển thị" : "Ẩn",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Từ vựng");
+    XLSX.writeFile(wb, "tu-vung.xlsx");
+    toast.success("Đã xuất file Excel");
+  };
+
+  const handleImportVocab = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
+
+      if (jsonData.length === 0) {
+        toast.error("File không có dữ liệu");
+        return;
+      }
+
+      let importedCount = 0;
+      for (const row of jsonData) {
+        const lessonTitle = String(row["Bài học"] || "").trim();
+        const word = String(row["Từ vựng"] || "").trim();
+        const meaning = String(row["Nghĩa"] || "").trim();
+        
+        if (!lessonTitle || !word || !meaning) continue;
+
+        const lesson = lessons.find((l) => l.title.toLowerCase() === lessonTitle.toLowerCase());
+        if (!lesson) {
+          console.warn(`Không tìm thấy bài học: ${lessonTitle}`);
+          continue;
+        }
+
+        const { error } = await supabase.from("vocabulary").insert({
+          lesson_id: lesson.id,
+          word,
+          meaning,
+          pronunciation: String(row["Phát âm"] || "").trim() || null,
+          example: String(row["Ví dụ"] || "").trim() || null,
+          order_index: importedCount,
+          is_active: String(row["Trạng thái"] || "Hiển thị").toLowerCase() !== "ẩn",
+        });
+
+        if (!error) importedCount++;
+      }
+
+      toast.success(`Đã nhập ${importedCount} từ vựng`);
+      fetchData();
+      onUpdate?.();
+    } catch (error) {
+      console.error("Import error:", error);
+      toast.error("Lỗi đọc file Excel");
+    }
+
+    event.target.value = "";
+  };
+
   const filteredVocabulary = selectedUnit === "all"
     ? vocabulary
     : vocabulary.filter((v) => {
@@ -244,10 +317,28 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} size="sm">
             <Plus className="size-4 mr-2" />
-            Thêm từ vựng
+            Thêm
           </Button>
+          <Button variant="outline" size="sm" onClick={handleExportVocab}>
+            <Download className="size-4 mr-2" />
+            Xuất Excel
+          </Button>
+          <label className="cursor-pointer">
+            <Button variant="outline" size="sm" asChild>
+              <span>
+                <Upload className="size-4 mr-2" />
+                Nhập Excel
+              </span>
+            </Button>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleImportVocab}
+            />
+          </label>
         </div>
       </div>
 

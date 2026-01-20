@@ -3,19 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Users, BookOpen, Layers, ArrowLeft, Shield, BookText } from "lucide-react";
+import { Users, BookOpen, Layers, ArrowLeft, Shield, BookText, HelpCircle } from "lucide-react";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminUnits } from "@/components/admin/AdminUnits";
 import { AdminLessons } from "@/components/admin/AdminLessons";
+import { AdminQuestions } from "@/components/admin/AdminQuestions";
 import AdminVocabulary from "@/components/admin/AdminVocabulary";
 
 const Admin = () => {
   const navigate = useNavigate();
   const { user, loading, isAdmin } = useAuth();
-  const [stats, setStats] = useState({ users: 0, units: 0, lessons: 0 });
+  const [stats, setStats] = useState({ users: 0, units: 0, lessons: 0, questions: 0 });
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -31,16 +32,18 @@ const Admin = () => {
   }, [isAdmin]);
 
   const fetchStats = async () => {
-    const [usersRes, unitsRes, lessonsRes] = await Promise.all([
+    const [usersRes, unitsRes, lessonsRes, questionsRes] = await Promise.all([
       supabase.from("profiles").select("id", { count: "exact", head: true }),
       supabase.from("units").select("id", { count: "exact", head: true }),
       supabase.from("lessons").select("id", { count: "exact", head: true }),
+      supabase.from("questions").select("id", { count: "exact", head: true }),
     ]);
 
     setStats({
       users: usersRes.count || 0,
       units: unitsRes.count || 0,
       lessons: lessonsRes.count || 0,
+      questions: questionsRes.count || 0,
     });
   };
 
@@ -79,60 +82,76 @@ const Admin = () => {
 
       <main className="container px-4 py-6">
         {/* Stats Cards */}
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/10 to-transparent">
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="rounded-full bg-primary/20 p-3">
-                <Users className="size-6 text-primary" />
+        <div className="mb-6 grid gap-3 grid-cols-2 md:grid-cols-4">
+          <Card className="border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full bg-primary/20 p-2">
+                <Users className="size-5 text-primary" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Người dùng</p>
-                <p className="text-2xl font-bold text-foreground">{stats.users}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-secondary/20 bg-gradient-to-br from-secondary/10 to-transparent">
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="rounded-full bg-secondary/20 p-3">
-                <Layers className="size-6 text-secondary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Khóa học</p>
-                <p className="text-2xl font-bold text-foreground">{stats.units}</p>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Người dùng</p>
+                <p className="text-xl font-bold text-foreground">{stats.users}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-gold/20 bg-gradient-to-br from-gold/10 to-transparent">
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="rounded-full bg-gold/20 p-3">
-                <BookOpen className="size-6 text-gold" />
+          <Card className="border border-secondary/20 bg-gradient-to-br from-secondary/5 to-transparent">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full bg-secondary/20 p-2">
+                <Layers className="size-5 text-secondary" />
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Bài học</p>
-                <p className="text-2xl font-bold text-foreground">{stats.lessons}</p>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Chương</p>
+                <p className="text-xl font-bold text-foreground">{stats.units}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gold/20 bg-gradient-to-br from-gold/5 to-transparent">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full bg-gold/20 p-2">
+                <BookOpen className="size-5 text-gold" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Bài học</p>
+                <p className="text-xl font-bold text-foreground">{stats.lessons}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-accent/20 bg-gradient-to-br from-accent/5 to-transparent">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full bg-accent/20 p-2">
+                <HelpCircle className="size-5 text-accent-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Câu hỏi</p>
+                <p className="text-xl font-bold text-foreground">{stats.questions}</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-muted">
-            <TabsTrigger value="users" className="gap-2">
+        <Tabs defaultValue="users" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-5 h-auto bg-muted p-1">
+            <TabsTrigger value="users" className="gap-1.5 py-2 text-xs sm:text-sm">
               <Users className="size-4" />
               <span className="hidden sm:inline">Người dùng</span>
             </TabsTrigger>
-            <TabsTrigger value="units" className="gap-2">
+            <TabsTrigger value="units" className="gap-1.5 py-2 text-xs sm:text-sm">
               <Layers className="size-4" />
-              <span className="hidden sm:inline">Khóa học</span>
+              <span className="hidden sm:inline">Chương</span>
             </TabsTrigger>
-            <TabsTrigger value="lessons" className="gap-2">
+            <TabsTrigger value="lessons" className="gap-1.5 py-2 text-xs sm:text-sm">
               <BookOpen className="size-4" />
               <span className="hidden sm:inline">Bài học</span>
             </TabsTrigger>
-            <TabsTrigger value="vocabulary" className="gap-2">
+            <TabsTrigger value="questions" className="gap-1.5 py-2 text-xs sm:text-sm">
+              <HelpCircle className="size-4" />
+              <span className="hidden sm:inline">Câu hỏi</span>
+            </TabsTrigger>
+            <TabsTrigger value="vocabulary" className="gap-1.5 py-2 text-xs sm:text-sm">
               <BookText className="size-4" />
               <span className="hidden sm:inline">Từ vựng</span>
             </TabsTrigger>
@@ -148,6 +167,10 @@ const Admin = () => {
 
           <TabsContent value="lessons">
             <AdminLessons onUpdate={fetchStats} />
+          </TabsContent>
+
+          <TabsContent value="questions">
+            <AdminQuestions onUpdate={fetchStats} />
           </TabsContent>
 
           <TabsContent value="vocabulary">
