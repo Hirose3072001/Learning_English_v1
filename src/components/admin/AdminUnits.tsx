@@ -166,30 +166,30 @@ export const AdminUnits = ({ onUpdate }: AdminUnitsProps) => {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
-          Quản lý khóa học
-          <Badge variant="secondary">{units.length} khóa</Badge>
+          Quản lý chương
+          <Badge variant="secondary">{units.length} chương</Badge>
         </CardTitle>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
+            <Button onClick={openCreateDialog} size="sm">
               <Plus className="mr-2 size-4" />
-              Thêm khóa học
+              Thêm chương
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {editingUnit ? "Sửa khóa học" : "Thêm khóa học mới"}
+                {editingUnit ? "Sửa chương" : "Thêm chương mới"}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Tên khóa học</Label>
+                <Label htmlFor="title">Tên chương</Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Nhập tên khóa học"
+                  placeholder="Nhập tên chương"
                 />
               </div>
               <div className="space-y-2">
@@ -198,7 +198,7 @@ export const AdminUnits = ({ onUpdate }: AdminUnitsProps) => {
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Nhập mô tả khóa học"
+                  placeholder="Nhập mô tả chương"
                   rows={3}
                 />
               </div>
@@ -236,73 +236,80 @@ export const AdminUnits = ({ onUpdate }: AdminUnitsProps) => {
       <CardContent>
         {units.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground">
-            Chưa có khóa học nào. Nhấn "Thêm khóa học" để bắt đầu.
+            Chưa có chương nào. Nhấn "Thêm chương" để bắt đầu.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Thứ tự</TableHead>
-                <TableHead>Tên khóa học</TableHead>
-                <TableHead>Mô tả</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {units.map((unit) => (
-                <TableRow key={unit.id}>
-                  <TableCell>{unit.order_index}</TableCell>
-                  <TableCell className="font-medium">{unit.title}</TableCell>
-                  <TableCell className="max-w-xs truncate">
-                    {unit.description || "-"}
-                  </TableCell>
-                  <TableCell>
-                    {unit.is_active ? (
-                      <Badge className="bg-success">Hoạt động</Badge>
-                    ) : (
-                      <Badge variant="secondary">Ẩn</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(unit)}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Xóa khóa học?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Bạn có chắc muốn xóa khóa học "{unit.title}"? Tất cả bài học trong khóa này cũng sẽ bị xóa.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Hủy</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteUnit(unit.id)}
-                              className="bg-destructive text-destructive-foreground"
-                            >
-                              Xóa
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="min-w-[120px]">Tên chương</TableHead>
+                  <TableHead className="min-w-[150px]">Mô tả</TableHead>
+                  <TableHead className="w-20">Trạng thái</TableHead>
+                  <TableHead className="w-24 text-right">Thao tác</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {units.map((unit) => (
+                  <TableRow key={unit.id}>
+                    <TableCell className="font-medium">{unit.order_index}</TableCell>
+                    <TableCell>
+                      <p className="font-medium line-clamp-1">{unit.title}</p>
+                    </TableCell>
+                    <TableCell>
+                      <p className="line-clamp-2 text-sm text-muted-foreground">
+                        {unit.description || "-"}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      {unit.is_active ? (
+                        <Badge className="bg-success text-xs">Hiện</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">Ẩn</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => openEditDialog(unit)}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8">
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Xóa chương?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Bạn có chắc muốn xóa chương "{unit.title}"? Tất cả bài học trong chương này cũng sẽ bị xóa.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteUnit(unit.id)}
+                                className="bg-destructive text-destructive-foreground"
+                              >
+                                Xóa
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

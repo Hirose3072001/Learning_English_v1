@@ -217,7 +217,7 @@ export const AdminLessons = ({ onUpdate }: AdminLessonsProps) => {
         </CardTitle>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
+            <Button onClick={openCreateDialog} size="sm">
               <Plus className="mr-2 size-4" />
               Thêm bài học
             </Button>
@@ -230,13 +230,13 @@ export const AdminLessons = ({ onUpdate }: AdminLessonsProps) => {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="unit">Khóa học</Label>
+                <Label htmlFor="unit">Chương</Label>
                 <Select
                   value={formData.unit_id}
                   onValueChange={(value) => setFormData({ ...formData, unit_id: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn khóa học" />
+                    <SelectValue placeholder="Chọn chương" />
                   </SelectTrigger>
                   <SelectContent>
                     {units.map((unit) => (
@@ -314,70 +314,77 @@ export const AdminLessons = ({ onUpdate }: AdminLessonsProps) => {
             Chưa có bài học nào. Nhấn "Thêm bài học" để bắt đầu.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Thứ tự</TableHead>
-                <TableHead>Tên bài học</TableHead>
-                <TableHead>Khóa học</TableHead>
-                <TableHead>XP</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lessons.map((lesson) => (
-                <TableRow key={lesson.id}>
-                  <TableCell>{lesson.order_index}</TableCell>
-                  <TableCell className="font-medium">{lesson.title}</TableCell>
-                  <TableCell>{lesson.units?.title || "-"}</TableCell>
-                  <TableCell>{lesson.xp_reward}</TableCell>
-                  <TableCell>
-                    {lesson.is_active ? (
-                      <Badge className="bg-success">Hoạt động</Badge>
-                    ) : (
-                      <Badge variant="secondary">Ẩn</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(lesson)}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Xóa bài học?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Bạn có chắc muốn xóa bài học "{lesson.title}"? Hành động này không thể hoàn tác.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Hủy</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteLesson(lesson.id)}
-                              className="bg-destructive text-destructive-foreground"
-                            >
-                              Xóa
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="min-w-[120px]">Tên bài học</TableHead>
+                  <TableHead className="w-24">Chương</TableHead>
+                  <TableHead className="w-16">XP</TableHead>
+                  <TableHead className="w-20">Trạng thái</TableHead>
+                  <TableHead className="w-24 text-right">Thao tác</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {lessons.map((lesson) => (
+                  <TableRow key={lesson.id}>
+                    <TableCell className="font-medium">{lesson.order_index}</TableCell>
+                    <TableCell>
+                      <p className="font-medium line-clamp-1">{lesson.title}</p>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {lesson.units?.title || "-"}
+                    </TableCell>
+                    <TableCell>{lesson.xp_reward}</TableCell>
+                    <TableCell>
+                      {lesson.is_active ? (
+                        <Badge className="bg-success text-xs">Hiện</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">Ẩn</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          onClick={() => openEditDialog(lesson)}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8">
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Xóa bài học?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Bạn có chắc muốn xóa bài học "{lesson.title}"? Hành động này không thể hoàn tác.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteLesson(lesson.id)}
+                                className="bg-destructive text-destructive-foreground"
+                              >
+                                Xóa
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>
