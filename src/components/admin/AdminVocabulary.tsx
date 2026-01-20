@@ -295,41 +295,48 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
   }
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold">Quản lý Từ vựng</h2>
-          <p className="text-sm text-muted-foreground">
-            {vocabulary.length} từ vựng
-          </p>
+    <Card className="p-4 sm:p-6">
+      {/* Header */}
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="shrink-0">
+            <h2 className="text-lg font-bold whitespace-nowrap">Quản lý Từ vựng</h2>
+            <p className="text-sm text-muted-foreground">
+              {vocabulary.length} từ vựng
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+              <SelectTrigger className="w-32 sm:w-40">
+                <SelectValue placeholder="Lọc chương" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả chương</SelectItem>
+                {units.map((unit) => (
+                  <SelectItem key={unit.id} value={unit.id}>
+                    {unit.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Lọc theo đơn vị" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả đơn vị</SelectItem>
-              {units.map((unit) => (
-                <SelectItem key={unit.id} value={unit.id}>
-                  {unit.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
           <Button onClick={openCreateDialog} size="sm">
-            <Plus className="size-4 mr-2" />
+            <Plus className="size-4 mr-1" />
             Thêm
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportVocab}>
-            <Download className="size-4 mr-2" />
-            Xuất Excel
+            <Download className="size-4 mr-1" />
+            <span className="hidden sm:inline">Xuất </span>Excel
           </Button>
           <label className="cursor-pointer">
             <Button variant="outline" size="sm" asChild>
               <span>
-                <Upload className="size-4 mr-2" />
-                Nhập Excel
+                <Upload className="size-4 mr-1" />
+                <span className="hidden sm:inline">Nhập </span>Excel
               </span>
             </Button>
             <input
@@ -342,17 +349,17 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
         </div>
       </div>
 
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12">#</TableHead>
-              <TableHead>Từ vựng</TableHead>
-              <TableHead>Nghĩa</TableHead>
-              <TableHead>Phát âm</TableHead>
-              <TableHead>Bài học</TableHead>
-              <TableHead>Trạng thái</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
+              <TableHead className="w-10">#</TableHead>
+              <TableHead className="min-w-[100px]">Từ vựng</TableHead>
+              <TableHead className="min-w-[80px]">Nghĩa</TableHead>
+              <TableHead className="w-20 hidden md:table-cell">Phát âm</TableHead>
+              <TableHead className="w-24">Bài học</TableHead>
+              <TableHead className="w-16">T.Thái</TableHead>
+              <TableHead className="w-20 text-right">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -360,54 +367,55 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
               <TableRow key={vocab.id}>
                 <TableCell className="font-medium">{index + 1}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-7"
+                      className="size-6 shrink-0"
                       onClick={() => speak(vocab.word)}
                     >
-                      <Volume2 className="size-4" />
+                      <Volume2 className="size-3" />
                     </Button>
-                    <span className="font-semibold">{vocab.word}</span>
+                    <span className="font-semibold text-sm">{vocab.word}</span>
                   </div>
                 </TableCell>
-                <TableCell>{vocab.meaning}</TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-sm">{vocab.meaning}</TableCell>
+                <TableCell className="text-xs text-muted-foreground hidden md:table-cell">
                   {vocab.pronunciation || "-"}
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">
-                    <p>{vocab.lessons?.title}</p>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="text-xs">
+                    <p className="line-clamp-1">{vocab.lessons?.title}</p>
+                    <p className="text-muted-foreground line-clamp-1">
                       {vocab.lessons?.units?.title}
                     </p>
                   </div>
                 </TableCell>
                 <TableCell>
                   <span
-                    className={`text-xs px-2 py-1 rounded-full ${
+                    className={`text-xs px-1.5 py-0.5 rounded ${
                       vocab.is_active
                         ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
                         : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                     }`}
                   >
-                    {vocab.is_active ? "Hiển thị" : "Ẩn"}
+                    {vocab.is_active ? "Hiện" : "Ẩn"}
                   </span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="size-7"
                       onClick={() => openEditDialog(vocab)}
                     >
-                      <Pencil className="size-4" />
+                      <Pencil className="size-3" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="size-4 text-destructive" />
+                        <Button variant="ghost" size="icon" className="size-7">
+                          <Trash2 className="size-3 text-destructive" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
