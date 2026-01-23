@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -32,7 +33,7 @@ interface UnitWithLessons {
 }
 
 const Learn = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Fetch units with caching
@@ -66,72 +67,77 @@ const Learn = () => {
   });
 
   // Fetch user progress
-  const { data: progress } = useQuery({
+  const { data: progress, isLoading: progressLoading } = useQuery({
     queryKey: ["user_progress", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
         .from("user_progress")
-        .select("*")
+        .select("lesson_id") // Only fetch lesson_id
         .eq("user_id", user.id)
         .eq("completed", true);
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 
-  const isLoading = unitsLoading || lessonsLoading;
+  const isLoading = authLoading || unitsLoading || lessonsLoading || progressLoading;
 
   // Process units with lessons and progress
-  const unitsWithLessons: UnitWithLessons[] = (units || []).map((unit) => {
-    const unitLessons = (lessons || []).filter((l) => l.unit_id === unit.id);
-    const completedLessonIds = new Set((progress || []).map((p) => p.lesson_id));
-    
-    // Find the first incomplete lesson globally for determining unlock status
-    const allLessonsOrdered = (lessons || []).sort((a, b) => a.order_index - b.order_index);
-    const firstIncompleteLessonId = allLessonsOrdered.find(
-      (l) => !completedLessonIds.has(l.id)
-    )?.id;
+  // Process units with lessons and progress
+  const unitsWithLessons: UnitWithLessons[] = useMemo(() => {
+    return (units || []).map((unit) => {
+      const unitLessons = (lessons || []).filter((l) => l.unit_id === unit.id);
+      const completedLessonIds = new Set((progress || []).map((p) => p.lesson_id));
 
-    const lessonsWithStatus: LessonWithProgress[] = unitLessons.map((lesson) => {
-      const isCompleted = completedLessonIds.has(lesson.id);
-      let status: "completed" | "current" | "locked" = "locked";
-      
-      if (isCompleted) {
-        status = "completed";
-      } else if (lesson.id === firstIncompleteLessonId) {
-        status = "current";
-      }
+      // Find the first incomplete lesson globally for determining unlock status
+      const allLessonsOrdered = (lessons || []).sort((a, b) => a.order_index - b.order_index);
+      const firstIncompleteLessonId = allLessonsOrdered.find(
+        (l) => !completedLessonIds.has(l.id)
+      )?.id;
+
+      const lessonsWithStatus: LessonWithProgress[] = unitLessons.map((lesson) => {
+        const isCompleted = completedLessonIds.has(lesson.id);
+        let status: "completed" | "current" | "locked" = "locked";
+
+        if (isCompleted) {
+          status = "completed";
+        } else if (lesson.id === firstIncompleteLessonId) {
+          status = "current";
+        }
+
+        const lessonWithStatus = {
+          id: lesson.id,
+          title: lesson.title,
+          description: lesson.description,
+          xp_reward: lesson.xp_reward,
+          order_index: lesson.order_index,
+          status,
+          icon: lesson.icon,
+        };
+        return lessonWithStatus;
+      });
+
+      const completedCount = lessonsWithStatus.filter((l) => l.status === "completed").length;
 
       return {
-        id: lesson.id,
-        title: lesson.title,
-        description: lesson.description,
-        xp_reward: lesson.xp_reward,
-        order_index: lesson.order_index,
-        status,
-        icon: lesson.icon,
+        id: unit.id,
+        title: unit.title,
+        description: unit.description,
+        order_index: unit.order_index,
+        lessons: lessonsWithStatus,
+        completedCount,
+        totalCount: lessonsWithStatus.length,
       };
     });
+  }, [units, lessons, progress]);
 
-    const completedCount = lessonsWithStatus.filter((l) => l.status === "completed").length;
+  const totalCompleted = useMemo(() => unitsWithLessons.reduce((acc, u) => acc + u.completedCount, 0), [unitsWithLessons]);
+  const totalLessons = useMemo(() => unitsWithLessons.reduce((acc, u) => acc + u.totalCount, 0), [unitsWithLessons]);
 
-    return {
-      id: unit.id,
-      title: unit.title,
-      description: unit.description,
-      order_index: unit.order_index,
-      lessons: lessonsWithStatus,
-      completedCount,
-      totalCount: lessonsWithStatus.length,
-    };
-  });
-
-  const totalCompleted = unitsWithLessons.reduce((acc, u) => acc + u.completedCount, 0);
-  const totalLessons = unitsWithLessons.reduce((acc, u) => acc + u.totalCount, 0);
-
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="size-8 animate-spin text-primary" />
@@ -156,15 +162,15 @@ const Learn = () => {
             </div>
             <div className="text-right">
               <div className="flex items-center gap-1 text-primary">
-                <Zap className="size-5" fill="currentColor" />
+                <BookOpen className="size-5" fill="currentColor" />
                 <span className="text-2xl font-bold">{totalCompleted}</span>
               </div>
               <p className="text-xs text-muted-foreground">/{totalLessons} bài học</p>
             </div>
           </div>
-          <Progress 
-            value={totalLessons > 0 ? (totalCompleted / totalLessons) * 100 : 0} 
-            className="h-3" 
+          <Progress
+            value={totalLessons > 0 ? (totalCompleted / totalLessons) * 100 : 0}
+            className="h-3"
           />
         </div>
       </Card>
@@ -217,9 +223,9 @@ const Learn = () => {
               />
 
               {unit.lessons.map((lesson, lessonIndex) => (
-                <LessonCard 
-                  key={lesson.id} 
-                  lesson={lesson} 
+                <LessonCard
+                  key={lesson.id}
+                  lesson={lesson}
                   index={lessonIndex}
                 />
               ))}
@@ -241,11 +247,11 @@ const Learn = () => {
   );
 };
 
-const LessonCard = ({ 
-  lesson, 
-  index 
-}: { 
-  lesson: LessonWithProgress; 
+const LessonCard = ({
+  lesson,
+  index
+}: {
+  lesson: LessonWithProgress;
   index: number;
 }) => {
   const navigate = useNavigate();

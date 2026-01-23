@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ import { Plus, Pencil, Trash2, Loader2, Volume2, Upload, Download } from "lucide
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSpeech } from "@/hooks/useSpeech";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 interface Unit {
   id: string;
@@ -74,14 +75,9 @@ interface AdminVocabularyProps {
 
 const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
   const { speak } = useSpeech();
-  const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVocab, setEditingVocab] = useState<Vocabulary | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
-
   const [formData, setFormData] = useState({
     lesson_id: "",
     word: "",
@@ -92,13 +88,9 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
     is_active: true,
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
+  const { data, isLoading: loading, refetch } = useQuery({
+    queryKey: ["admin-vocabulary-data"],
+    queryFn: async () => {
       const [vocabRes, unitsRes, lessonsRes] = await Promise.all([
         supabase
           .from("vocabulary")
@@ -112,16 +104,18 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
       if (unitsRes.error) throw unitsRes.error;
       if (lessonsRes.error) throw lessonsRes.error;
 
-      setVocabulary(vocabRes.data as Vocabulary[]);
-      setUnits(unitsRes.data as Unit[]);
-      setLessons(lessonsRes.data as Lesson[]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Không thể tải dữ liệu");
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        vocabulary: vocabRes.data as Vocabulary[],
+        units: unitsRes.data as Unit[],
+        lessons: lessonsRes.data as Lesson[],
+      };
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const vocabulary = data?.vocabulary || [];
+  const units = data?.units || [];
+  const lessons = data?.lessons || [];
 
   const openCreateDialog = () => {
     setEditingVocab(null);
@@ -182,7 +176,7 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
       }
 
       setDialogOpen(false);
-      fetchData();
+      refetch();
       onUpdate?.();
     } catch (error) {
       console.error("Error saving vocabulary:", error);
@@ -195,7 +189,7 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
       const { error } = await supabase.from("vocabulary").delete().eq("id", id);
       if (error) throw error;
       toast.success("Đã xóa từ vựng");
-      fetchData();
+      refetch();
       onUpdate?.();
     } catch (error) {
       console.error("Error deleting vocabulary:", error);
@@ -203,7 +197,7 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
     }
   };
 
-  const handleExportVocab = () => {
+  const handleExportVocab = async () => {
     const exportData = filteredVocabulary.map((v, index) => ({
       STT: index + 1,
       "Chương": v.lessons?.units?.title || "",
@@ -215,10 +209,22 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
       "Trạng thái": v.is_active ? "Hiển thị" : "Ẩn",
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Từ vựng");
-    XLSX.writeFile(wb, "tu-vung.xlsx");
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Từ vựng");
+
+    if (exportData.length > 0) {
+      worksheet.columns = Object.keys(exportData[0]).map(key => ({ header: key, key }));
+      exportData.forEach(row => worksheet.addRow(row));
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tu-vung.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
     toast.success("Đã xuất file Excel");
   };
 
@@ -228,9 +234,30 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
 
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) {
+        toast.error("File không hợp lệ");
+        return;
+      }
+
+      const jsonData: Record<string, unknown>[] = [];
+      const headers: string[] = [];
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell) => {
+            headers.push(cell.value?.toString() || "");
+          });
+        } else {
+          const rowData: Record<string, unknown> = {};
+          row.eachCell((cell, colNumber) => {
+            rowData[headers[colNumber - 1]] = cell.value;
+          });
+          jsonData.push(rowData);
+        }
+      });
 
       if (jsonData.length === 0) {
         toast.error("File không có dữ liệu");
@@ -242,7 +269,7 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
         const lessonTitle = String(row["Bài học"] || "").trim();
         const word = String(row["Từ vựng"] || "").trim();
         const meaning = String(row["Nghĩa"] || "").trim();
-        
+
         if (!lessonTitle || !word || !meaning) continue;
 
         const lesson = lessons.find((l) => l.title.toLowerCase() === lessonTitle.toLowerCase());
@@ -265,7 +292,7 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
       }
 
       toast.success(`Đã nhập ${importedCount} từ vựng`);
-      fetchData();
+      refetch();
       onUpdate?.();
     } catch (error) {
       console.error("Import error:", error);
@@ -278,9 +305,9 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
   const filteredVocabulary = selectedUnit === "all"
     ? vocabulary
     : vocabulary.filter((v) => {
-        const lesson = lessons.find((l) => l.id === v.lesson_id);
-        return lesson?.unit_id === selectedUnit;
-      });
+      const lesson = lessons.find((l) => l.id === v.lesson_id);
+      return lesson?.unit_id === selectedUnit;
+    });
 
   const filteredLessons = selectedUnit === "all"
     ? lessons
@@ -321,7 +348,7 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
             </Select>
           </div>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
           <Button onClick={openCreateDialog} size="sm">
@@ -376,15 +403,15 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
                     >
                       <Volume2 className="size-3" />
                     </Button>
-                    <span className="font-semibold text-sm">{vocab.word}</span>
+                    <span className="font-semibold">{vocab.word}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-sm">{vocab.meaning}</TableCell>
-                <TableCell className="text-xs text-muted-foreground hidden md:table-cell">
+                <TableCell>{vocab.meaning}</TableCell>
+                <TableCell className="text-muted-foreground hidden md:table-cell">
                   {vocab.pronunciation || "-"}
                 </TableCell>
                 <TableCell>
-                  <div className="text-xs">
+                  <div>
                     <p className="line-clamp-1">{vocab.lessons?.title}</p>
                     <p className="text-muted-foreground line-clamp-1">
                       {vocab.lessons?.units?.title}
@@ -393,11 +420,10 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
                 </TableCell>
                 <TableCell>
                   <span
-                    className={`text-xs px-1.5 py-0.5 rounded ${
-                      vocab.is_active
-                        ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                        : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                    }`}
+                    className={`text-xs px-1.5 py-0.5 rounded ${vocab.is_active
+                      ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                      : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      }`}
                   >
                     {vocab.is_active ? "Hiện" : "Ẩn"}
                   </span>

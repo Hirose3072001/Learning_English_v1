@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 interface Unit {
   id: string;
@@ -63,10 +64,6 @@ interface AdminQuestionsProps {
 }
 
 export const AdminQuestions = ({ onUpdate }: AdminQuestionsProps) => {
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
@@ -81,52 +78,45 @@ export const AdminQuestions = ({ onUpdate }: AdminQuestionsProps) => {
     is_active: true,
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const { data, isLoading: loading, refetch } = useQuery({
+    queryKey: ["admin-questions-data"],
+    queryFn: async () => {
+      const [questionsRes, unitsRes, lessonsRes] = await Promise.all([
+        supabase
+          .from("questions")
+          .select("*, lessons(title, order_index, units(title, order_index))")
+          .order("order_index", { ascending: true }),
+        supabase
+          .from("units")
+          .select("id, title, order_index")
+          .order("order_index", { ascending: true }),
+        supabase
+          .from("lessons")
+          .select("id, title, unit_id, order_index, units(title, order_index)")
+          .order("order_index", { ascending: true }),
+      ]);
 
-  const fetchData = async () => {
-    setLoading(true);
+      if (questionsRes.error) throw questionsRes.error;
+      if (unitsRes.error) throw unitsRes.error;
+      if (lessonsRes.error) throw lessonsRes.error;
 
-    const [questionsRes, unitsRes, lessonsRes] = await Promise.all([
-      supabase
-        .from("questions")
-        .select("*, lessons(title, order_index, units(title, order_index))")
-        .order("order_index", { ascending: true }),
-      supabase
-        .from("units")
-        .select("id, title, order_index")
-        .order("order_index", { ascending: true }),
-      supabase
-        .from("lessons")
-        .select("id, title, unit_id, order_index, units(title, order_index)")
-        .order("order_index", { ascending: true }),
-    ]);
-
-    if (questionsRes.error) {
-      toast.error("Lỗi tải danh sách câu hỏi");
-    } else {
       const formattedQuestions = (questionsRes.data || []).map((q) => ({
         ...q,
         options: Array.isArray(q.options) ? q.options : JSON.parse(q.options as string || "[]"),
       }));
-      setQuestions(formattedQuestions);
-    }
 
-    if (unitsRes.error) {
-      toast.error("Lỗi tải danh sách chương");
-    } else {
-      setUnits(unitsRes.data || []);
-    }
+      return {
+        questions: formattedQuestions,
+        units: unitsRes.data || [],
+        lessons: lessonsRes.data || [],
+      };
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-    if (lessonsRes.error) {
-      toast.error("Lỗi tải danh sách bài học");
-    } else {
-      setLessons(lessonsRes.data || []);
-    }
-
-    setLoading(false);
-  };
+  const questions = data?.questions || [];
+  const units = data?.units || [];
+  const lessons = data?.lessons || [];
 
   const filteredLessons = selectedUnit === "all"
     ? lessons
@@ -235,7 +225,7 @@ export const AdminQuestions = ({ onUpdate }: AdminQuestionsProps) => {
     }
 
     setDialogOpen(false);
-    fetchData();
+    refetch();
     onUpdate();
   };
 
@@ -248,11 +238,11 @@ export const AdminQuestions = ({ onUpdate }: AdminQuestionsProps) => {
     }
 
     toast.success("Đã xóa câu hỏi");
-    fetchData();
+    refetch();
     onUpdate();
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const exportData = filteredQuestions.map((q, index) => ({
       STT: index + 1,
       "Chương": q.lessons?.units?.title || "",
@@ -267,10 +257,22 @@ export const AdminQuestions = ({ onUpdate }: AdminQuestionsProps) => {
       "Trạng thái": q.is_active ? "Hiển thị" : "Ẩn",
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Câu hỏi");
-    XLSX.writeFile(wb, "cau-hoi.xlsx");
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Câu hỏi");
+
+    if (exportData.length > 0) {
+      worksheet.columns = Object.keys(exportData[0]).map(key => ({ header: key, key }));
+      exportData.forEach(row => worksheet.addRow(row));
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "cau-hoi.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
     toast.success("Đã xuất file Excel");
   };
 
@@ -280,9 +282,30 @@ export const AdminQuestions = ({ onUpdate }: AdminQuestionsProps) => {
 
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) {
+        toast.error("File không hợp lệ");
+        return;
+      }
+
+      const jsonData: Record<string, unknown>[] = [];
+      const headers: string[] = [];
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell) => {
+            headers.push(cell.value?.toString() || "");
+          });
+        } else {
+          const rowData: Record<string, unknown> = {};
+          row.eachCell((cell, colNumber) => {
+            rowData[headers[colNumber - 1]] = cell.value;
+          });
+          jsonData.push(rowData);
+        }
+      });
 
       if (jsonData.length === 0) {
         toast.error("File không có dữ liệu");
@@ -293,7 +316,7 @@ export const AdminQuestions = ({ onUpdate }: AdminQuestionsProps) => {
       for (const row of jsonData) {
         const lessonTitle = String(row["Bài học"] || "").trim();
         const question = String(row["Câu hỏi"] || "").trim();
-        
+
         if (!lessonTitle || !question) continue;
 
         const lesson = lessons.find((l) => l.title.toLowerCase() === lessonTitle.toLowerCase());
@@ -326,7 +349,7 @@ export const AdminQuestions = ({ onUpdate }: AdminQuestionsProps) => {
       }
 
       toast.success(`Đã nhập ${importedCount} câu hỏi`);
-      fetchData();
+      refetch();
       onUpdate();
     } catch (error) {
       console.error("Import error:", error);

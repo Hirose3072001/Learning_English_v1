@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,8 +44,6 @@ interface AdminUnitsProps {
 }
 
 export const AdminUnits = ({ onUpdate }: AdminUnitsProps) => {
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
   const [formData, setFormData] = useState({
@@ -54,26 +53,19 @@ export const AdminUnits = ({ onUpdate }: AdminUnitsProps) => {
     is_active: true,
   });
 
-  useEffect(() => {
-    fetchUnits();
-  }, []);
+  const { data: units = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["admin-units"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("units")
+        .select("*")
+        .order("order_index", { ascending: true });
 
-  const fetchUnits = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("units")
-      .select("*")
-      .order("order_index", { ascending: true });
-
-    if (error) {
-      toast.error("Lỗi tải danh sách khóa học");
-      setLoading(false);
-      return;
-    }
-
-    setUnits(data || []);
-    setLoading(false);
-  };
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const openCreateDialog = () => {
     setEditingUnit(null);
@@ -135,7 +127,7 @@ export const AdminUnits = ({ onUpdate }: AdminUnitsProps) => {
     }
 
     setDialogOpen(false);
-    fetchUnits();
+    refetch();
     onUpdate();
   };
 
@@ -148,7 +140,7 @@ export const AdminUnits = ({ onUpdate }: AdminUnitsProps) => {
     }
 
     toast.success("Đã xóa khóa học");
-    fetchUnits();
+    refetch();
     onUpdate();
   };
 

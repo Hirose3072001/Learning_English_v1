@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Users, BookOpen, Layers, ArrowLeft, Shield, BookText, HelpCircle } from "lucide-react";
+import { Users, BookOpen, Layers, ArrowLeft, Shield, BookText, HelpCircle, Zap } from "lucide-react";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminUnits } from "@/components/admin/AdminUnits";
 import { AdminLessons } from "@/components/admin/AdminLessons";
 import { AdminQuestions } from "@/components/admin/AdminQuestions";
 import AdminVocabulary from "@/components/admin/AdminVocabulary";
+import AdminIPA from "@/components/admin/AdminIPA";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -63,7 +64,7 @@ const Admin = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card shadow-duo">
-        <div className="container flex h-16 items-center justify-between px-4">
+        <div className="w-full max-w-screen-2xl mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -80,7 +81,7 @@ const Admin = () => {
         </div>
       </header>
 
-      <main className="container px-4 py-6">
+      <main className="w-full px-4 py-6">
         {/* Stats Cards */}
         <div className="mb-6 grid gap-3 grid-cols-2 md:grid-cols-4">
           <Card className="border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
@@ -134,7 +135,7 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 h-auto bg-muted p-1">
+          <TabsList className="grid w-full grid-cols-6 h-auto bg-muted p-1">
             <TabsTrigger value="users" className="gap-1.5 py-2 text-xs sm:text-sm">
               <Users className="size-4" />
               <span className="hidden sm:inline">Người dùng</span>
@@ -154,6 +155,10 @@ const Admin = () => {
             <TabsTrigger value="vocabulary" className="gap-1.5 py-2 text-xs sm:text-sm">
               <BookText className="size-4" />
               <span className="hidden sm:inline">Từ vựng</span>
+            </TabsTrigger>
+            <TabsTrigger value="ipa" className="gap-1.5 py-2 text-xs sm:text-sm">
+              <Zap className="size-4" />
+              <span className="hidden sm:inline">Phát âm</span>
             </TabsTrigger>
           </TabsList>
 
@@ -175,6 +180,10 @@ const Admin = () => {
 
           <TabsContent value="vocabulary">
             <AdminVocabulary onUpdate={fetchStats} />
+          </TabsContent>
+
+          <TabsContent value="ipa">
+            <AdminIPA />
           </TabsContent>
         </Tabs>
       </main>

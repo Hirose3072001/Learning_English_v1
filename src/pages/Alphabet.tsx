@@ -2,51 +2,31 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Volume2 } from "lucide-react";
-import { useSpeech } from "@/hooks/useSpeech";
+import { useIPASpeech } from "@/hooks/useIPASpeech";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-const vowels = [
-  { letter: "A", pronunciation: "/eɪ/", example: "Apple", sound: "A" },
-  { letter: "E", pronunciation: "/iː/", example: "Elephant", sound: "E" },
-  { letter: "I", pronunciation: "/aɪ/", example: "Ice", sound: "I" },
-  { letter: "O", pronunciation: "/oʊ/", example: "Orange", sound: "O" },
-  { letter: "U", pronunciation: "/juː/", example: "Umbrella", sound: "U" },
-];
-
-const consonants = [
-  { letter: "B", pronunciation: "/biː/", example: "Ball", sound: "B" },
-  { letter: "C", pronunciation: "/siː/", example: "Cat", sound: "C" },
-  { letter: "D", pronunciation: "/diː/", example: "Dog", sound: "D" },
-  { letter: "F", pronunciation: "/ef/", example: "Fish", sound: "F" },
-  { letter: "G", pronunciation: "/dʒiː/", example: "Girl", sound: "G" },
-  { letter: "H", pronunciation: "/eɪtʃ/", example: "House", sound: "H" },
-  { letter: "J", pronunciation: "/dʒeɪ/", example: "Juice", sound: "J" },
-  { letter: "K", pronunciation: "/keɪ/", example: "Kite", sound: "K" },
-  { letter: "L", pronunciation: "/el/", example: "Lion", sound: "L" },
-  { letter: "M", pronunciation: "/em/", example: "Moon", sound: "M" },
-  { letter: "N", pronunciation: "/en/", example: "Nose", sound: "N" },
-  { letter: "P", pronunciation: "/piː/", example: "Pen", sound: "P" },
-  { letter: "Q", pronunciation: "/kjuː/", example: "Queen", sound: "Q" },
-  { letter: "R", pronunciation: "/ɑːr/", example: "Rain", sound: "R" },
-  { letter: "S", pronunciation: "/es/", example: "Sun", sound: "S" },
-  { letter: "T", pronunciation: "/tiː/", example: "Tree", sound: "T" },
-  { letter: "V", pronunciation: "/viː/", example: "Violin", sound: "V" },
-  { letter: "W", pronunciation: "/ˈdʌbəljuː/", example: "Water", sound: "W" },
-  { letter: "X", pronunciation: "/eks/", example: "X-ray", sound: "X" },
-  { letter: "Y", pronunciation: "/waɪ/", example: "Yellow", sound: "Y" },
-  { letter: "Z", pronunciation: "/ziː/", example: "Zebra", sound: "Z" },
-];
-
-interface LetterCardProps {
-  item: { letter: string; pronunciation: string; example: string; sound: string };
-  index: number;
-  isVowel?: boolean;
-  speak: (text: string) => void;
+interface Character {
+  id: string;
+  letter: string;
+  type: 'vowel' | 'consonant';
+  pronunciation: string;
+  example: string;
+  sound: string;
+  order_index: number;
 }
 
-const LetterCard = ({ item, index, isVowel, speak }: LetterCardProps) => {
+interface CharacterCardProps {
+  item: Character;
+  index: number;
+  speak: (audioUrl: string | null, text: string) => void;
+}
+
+const CharacterCard = ({ item, index, speak }: CharacterCardProps) => {
   const handleSpeak = (e: React.MouseEvent) => {
     e.stopPropagation();
-    speak(item.example);
+    // Chỉ dùng Web Speech API cho từ ví dụ, không dùng URL âm thanh
+    speak(null, item.example);
   };
 
   return (
@@ -56,18 +36,24 @@ const LetterCard = ({ item, index, isVowel, speak }: LetterCardProps) => {
       transition={{ delay: index * 0.02 }}
     >
       <Card
-        onClick={() => speak(item.letter)}
+        onClick={() => {
+          // Chỉ phát âm ký tự IPA nếu admin đã thêm URL âm thanh
+          if (item.sound && item.sound.trim()) {
+            speak(item.sound, item.letter);
+          }
+        }}
         className={`group cursor-pointer p-3 text-center transition-all hover:scale-105 ${
-          isVowel
+          item.type === 'vowel'
             ? "border-2 border-red-300 bg-red-50 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:hover:bg-red-900/50"
             : "border-2 border-blue-300 bg-blue-50 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/30 dark:hover:bg-blue-900/50"
         }`}
       >
         <div className="flex items-center justify-between">
           <span
-            className={`text-3xl font-black ${
-              isVowel ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
+            className={`text-2xl font-bold font-mono whitespace-nowrap ${
+              item.type === 'vowel' ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
             }`}
+            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
           >
             {item.letter}
           </span>
@@ -88,23 +74,54 @@ const LetterCard = ({ item, index, isVowel, speak }: LetterCardProps) => {
 };
 
 const Alphabet = () => {
-  const { speak } = useSpeech();
+  const { speak } = useIPASpeech();
+
+  // Fetch characters from database
+  const { data: characters, isLoading } = useQuery({
+    queryKey: ['characters'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('characters')
+        .select('*')
+        .eq('is_active', true)
+        .order('order_index');
+      
+      if (error) throw error;
+      return data as Character[];
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  const vowels = characters?.filter(char => char.type === 'vowel') || [];
+  const consonants = characters?.filter(char => char.type === 'consonant') || [];
 
   return (
     <div className="py-6 space-y-8">
-      <h1 className="mb-6 text-center text-2xl font-bold">Bảng chữ cái</h1>
+      <h1 className="mb-6 text-center text-2xl font-bold">Học phát âm</h1>
 
       {/* Vowels Section */}
       <div>
         <div className="mb-4 flex items-center gap-2">
           <div className="size-4 rounded-full bg-red-500" />
           <h2 className="text-lg font-bold text-red-600 dark:text-red-400">
-            Nguyên âm (Vowels) - 5 chữ
+            Nguyên âm (Vowels) - {vowels.length} chữ
           </h2>
         </div>
         <div className="grid grid-cols-5 gap-3">
           {vowels.map((item, index) => (
-            <LetterCard key={item.letter} item={item} index={index} isVowel speak={speak} />
+            <CharacterCard
+              key={item.id}
+              item={item}
+              index={index}
+              speak={speak}
+            />
           ))}
         </div>
       </div>
@@ -114,12 +131,17 @@ const Alphabet = () => {
         <div className="mb-4 flex items-center gap-2">
           <div className="size-4 rounded-full bg-blue-500" />
           <h2 className="text-lg font-bold text-blue-600 dark:text-blue-400">
-            Phụ âm (Consonants) - 21 chữ
+            Phụ âm (Consonants) - {consonants.length} chữ
           </h2>
         </div>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
           {consonants.map((item, index) => (
-            <LetterCard key={item.letter} item={item} index={index + 5} speak={speak} />
+            <CharacterCard
+              key={item.id}
+              item={item}
+              index={index + vowels.length}
+              speak={speak}
+            />
           ))}
         </div>
       </div>
@@ -130,11 +152,11 @@ const Alphabet = () => {
         <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center gap-2">
             <div className="size-4 rounded-full bg-red-500" />
-            <span>Nguyên âm (A, E, I, O, U)</span>
+            <span>Nguyên âm</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="size-4 rounded-full bg-blue-500" />
-            <span>Phụ âm (21 chữ còn lại)</span>
+            <span>Phụ âm</span>
           </div>
         </div>
         <p className="mt-3 text-muted-foreground text-sm">

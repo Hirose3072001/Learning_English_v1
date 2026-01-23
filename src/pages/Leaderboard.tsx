@@ -18,12 +18,12 @@ interface LeaderboardUser {
 }
 
 const Leaderboard = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // Fetch profiles from leaderboard view ordered by XP
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["leaderboard", user?.id],
-    enabled: !loading,
+    enabled: !authLoading,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles_leaderboard")
@@ -33,6 +33,7 @@ const Leaderboard = () => {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 
   const leaderboardData: LeaderboardUser[] = (profiles || []).map((profile, index) => ({
@@ -54,7 +55,7 @@ const Leaderboard = () => {
     return user.display_name || user.username;
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="size-8 animate-spin text-primary" />

@@ -2,13 +2,13 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Target, Zap, BookOpen, Flame, Gift, Clock, Loader2 } from "lucide-react";
+import { Target, Zap, BookOpen, Flame, Gift, Clock, Loader2, Gem } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 interface Quest {
   id: string;
@@ -18,6 +18,7 @@ interface Quest {
   target_type: string;
   target_value: number;
   reward_gems: number;
+  reward_streak: number;
   icon: string | null;
 }
 
@@ -41,7 +42,7 @@ const getIcon = (iconName: string | null) => {
 };
 
 const Quests = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
   // Get current period starts
@@ -68,10 +69,11 @@ const Quests = () => {
       if (error) throw error;
       return data as Quest[];
     },
+    staleTime: 1000 * 60 * 60, // 1 hour (quests unlikely to change often)
   });
 
   // Fetch user profile for XP and streak
-  const { data: profile } = useQuery({
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -81,45 +83,74 @@ const Quests = () => {
         .eq("user_id", user.id)
         .maybeSingle();
       if (error) throw error;
+      
+      // Check if streak should be reset
+      if (data) {
+        const today = new Date().toISOString().split("T")[0];
+        const lastActivity = data.last_activity_date;
+        const lastActivityDate = lastActivity ? new Date(lastActivity) : null;
+        const todayDate = new Date(today);
+        
+        // If last activity was more than 1 day ago, reset streak
+        if (lastActivityDate) {
+          const timeDiff = todayDate.getTime() - lastActivityDate.getTime();
+          const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+          
+          if (daysDiff > 1) {
+            // Reset streak if gap > 1 day
+            const { error: resetError } = await supabase
+              .from("profiles")
+              .update({ streak_count: 0 })
+              .eq("user_id", user.id);
+            
+            if (!resetError) {
+              data.streak_count = 0;
+            }
+          }
+        }
+      }
+      
       return data;
     },
     enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Fetch completed lessons count for today/this week
-  const { data: lessonCounts } = useQuery({
+  const { data: lessonCounts, isLoading: lessonCountsLoading } = useQuery({
     queryKey: ["lesson-counts", user?.id, dailyStart, weeklyStart],
     queryFn: async () => {
       if (!user?.id) return { daily: 0, weekly: 0 };
-      
-      const { data: dailyData, error: dailyError } = await supabase
+
+      const { count: dailyCount, error: dailyError } = await supabase
         .from("user_progress")
-        .select("id")
+        .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("completed", true)
         .gte("completed_at", `${dailyStart}T00:00:00.000Z`);
-      
+
       if (dailyError) throw dailyError;
 
-      const { data: weeklyData, error: weeklyError } = await supabase
+      const { count: weeklyCount, error: weeklyError } = await supabase
         .from("user_progress")
-        .select("id")
+        .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("completed", true)
         .gte("completed_at", `${weeklyStart}T00:00:00.000Z`);
-      
+
       if (weeklyError) throw weeklyError;
 
       return {
-        daily: dailyData?.length || 0,
-        weekly: weeklyData?.length || 0,
+        daily: dailyCount || 0,
+        weekly: weeklyCount || 0,
       };
     },
     enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Fetch user quest progress
-  const { data: userQuests } = useQuery({
+  const { data: userQuests, isLoading: userQuestsLoading } = useQuery({
     queryKey: ["user-quests", user?.id, dailyStart, weeklyStart],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -131,6 +162,7 @@ const Quests = () => {
       return data as UserQuest[];
     },
     enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Calculate quest progress
@@ -145,11 +177,11 @@ const Quests = () => {
     }
 
     let progress = 0;
-    
+
     switch (quest.target_type) {
       case "lessons":
-        progress = quest.type === "daily" 
-          ? lessonCounts?.daily || 0 
+        progress = quest.type === "daily"
+          ? lessonCounts?.daily || 0
           : lessonCounts?.weekly || 0;
         break;
       case "xp":
@@ -164,16 +196,16 @@ const Quests = () => {
     }
 
     const completed = progress >= quest.target_value;
-    return { 
-      progress: Math.min(progress, quest.target_value), 
-      completed, 
-      claimed: userQuest?.claimed || false 
+    return {
+      progress: Math.min(progress, quest.target_value),
+      completed,
+      claimed: userQuest?.claimed || false
     };
   };
 
   const handleClaimReward = async (quest: Quest) => {
     if (!user?.id) return;
-    
+
     const periodStart = quest.type === "daily" ? dailyStart : weeklyStart;
 
     try {
@@ -193,7 +225,8 @@ const Quests = () => {
 
       if (questError) throw questError;
 
-      // Add gems to profile
+      // Add gems to profile and update last_activity_date
+      const today = new Date().toISOString().split("T")[0];
       const currentGems = profile?.xp ? 100 : 100; // Default gems
       const { data: profileData } = await supabase
         .from("profiles")
@@ -203,13 +236,32 @@ const Quests = () => {
 
       const { error: gemsError } = await supabase
         .from("profiles")
-        .update({ gems: (profileData?.gems || 0) + quest.reward_gems })
+        .update({ 
+          gems: (profileData?.gems || 0) + quest.reward_gems,
+          last_activity_date: today
+        })
         .eq("user_id", user.id);
 
       if (gemsError) throw gemsError;
 
-      toast.success(`+${quest.reward_gems} 💎 đã được thêm vào tài khoản!`);
+      // Update streak if reward_streak > 0
+      if (quest.reward_streak && quest.reward_streak > 0) {
+        const currentStreak = profile?.streak_count || 0;
+        const { error: streakError } = await supabase
+          .from("profiles")
+          .update({ streak_count: currentStreak + quest.reward_streak })
+          .eq("user_id", user.id);
+
+        if (streakError) throw streakError;
+      }
+
+      const rewards = [];
+      if (quest.reward_gems && quest.reward_gems > 0) rewards.push(`+${quest.reward_gems} 💎`);
+      if (quest.reward_streak && quest.reward_streak > 0) rewards.push(`+${quest.reward_streak} 🔥`);
+      const rewardText = rewards.length > 0 ? rewards.join(" và ") : "";
       
+      toast.success(rewardText + " đã được thêm vào tài khoản!");
+
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ["user-quests"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
@@ -219,7 +271,7 @@ const Quests = () => {
     }
   };
 
-  const isLoading = questsLoading;
+  const isLoading = authLoading || questsLoading || profileLoading || lessonCountsLoading || userQuestsLoading;
 
   const dailyQuests = quests?.filter((q) => q.type === "daily") || [];
   const weeklyQuests = quests?.filter((q) => q.type === "weekly") || [];
@@ -250,9 +302,9 @@ const Quests = () => {
           {dailyQuests.map((quest, index) => {
             const { progress, completed, claimed } = getQuestProgress(quest);
             return (
-              <QuestCard 
-                key={quest.id} 
-                quest={quest} 
+              <QuestCard
+                key={quest.id}
+                quest={quest}
                 index={index}
                 progress={progress}
                 completed={completed}
@@ -279,9 +331,9 @@ const Quests = () => {
           {weeklyQuests.map((quest, index) => {
             const { progress, completed, claimed } = getQuestProgress(quest);
             return (
-              <QuestCard 
-                key={quest.id} 
-                quest={quest} 
+              <QuestCard
+                key={quest.id}
+                quest={quest}
                 index={index}
                 progress={progress}
                 completed={completed}
@@ -301,23 +353,34 @@ const Quests = () => {
   );
 };
 
-const QuestCard = ({ 
-  quest, 
-  index, 
-  progress, 
-  completed, 
+const QuestCard = ({
+  quest,
+  index,
+  progress,
+  completed,
   claimed,
-  onClaim 
-}: { 
-  quest: Quest; 
+  onClaim
+}: {
+  quest: Quest;
   index: number;
   progress: number;
   completed: boolean;
   claimed: boolean;
   onClaim: () => void;
 }) => {
+  const [isClaiming, setIsClaiming] = useState(false);
   const progressPercent = (progress / quest.target_value) * 100;
   const Icon = getIcon(quest.icon);
+
+  const handleClaim = async () => {
+    if (isClaiming || claimed) return; // Prevent double click
+    setIsClaiming(true);
+    try {
+      await onClaim();
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
   return (
     <motion.div
@@ -363,11 +426,23 @@ const QuestCard = ({
                   {quest.description}
                 </p>
               </div>
-              <div className="flex items-center gap-1 rounded-lg bg-secondary/20 px-2 py-1">
-                <Zap className="size-4 text-secondary" fill="currentColor" />
-                <span className="text-sm font-bold text-secondary">
-                  +{quest.reward_gems}
-                </span>
+              <div className="flex items-center gap-2">
+                {(quest.reward_gems ?? 0) > 0 && (
+                  <div className="flex items-center gap-1 rounded-lg bg-secondary/20 px-2 py-1">
+                    <Gem className="size-4 text-secondary" fill="currentColor" />
+                    <span className="text-sm font-bold text-secondary">
+                      +{quest.reward_gems}
+                    </span>
+                  </div>
+                )}
+                {(quest.reward_streak ?? 0) > 0 && (
+                  <div className="flex items-center gap-1 rounded-lg bg-orange-500/20 px-2 py-1">
+                    <Flame className="size-4 text-orange-500" fill="currentColor" />
+                    <span className="text-sm font-bold text-orange-500">
+                      +{quest.reward_streak}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -382,8 +457,9 @@ const QuestCard = ({
             </div>
 
             {completed && !claimed && (
-              <Button size="sm" className="mt-3" onClick={onClaim}>
-                Nhận thưởng
+              <Button size="sm" className="mt-3" onClick={handleClaim} disabled={isClaiming}>
+                {isClaiming && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isClaiming ? "Đang xử lý..." : "Nhận thưởng"}
               </Button>
             )}
             {claimed && (

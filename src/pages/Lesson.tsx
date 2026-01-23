@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
-import { X, Heart, CheckCircle2, XCircle, Sparkles, Volume2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { X, Heart, CheckCircle2, XCircle, Sparkles, Volume2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpeech } from "@/hooks/useSpeech";
@@ -18,6 +19,7 @@ interface Question {
   options: string[];
   explanation: string | null;
   order_index: number;
+  correct_index: number;
 }
 
 interface AnswerResult {
@@ -32,6 +34,7 @@ const Lesson = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { speak } = useSpeech();
+  const queryClient = useQueryClient();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -41,6 +44,8 @@ const Lesson = () => {
   const [hearts, setHearts] = useState(5);
   const [correctCount, setCorrectCount] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
+  const [showHeartRecoveryDialog, setShowHeartRecoveryDialog] = useState(false);
+  const [isUsingRecoveryItem, setIsUsingRecoveryItem] = useState(false);
 
   // Preload voices on mount
   useEffect(() => {
@@ -62,18 +67,18 @@ const Lesson = () => {
     enabled: !!lessonId,
   });
 
-  // Fetch questions from database using the public view (no correct_index)
+  // Fetch questions from database directly (including correct_index for client-side check)
   const { data: questions, isLoading: questionsLoading } = useQuery({
     queryKey: ["questions", lessonId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("questions_public")
+        .from("questions")
         .select("*")
         .eq("lesson_id", lessonId)
         .eq("is_active", true)
         .order("order_index");
       if (error) throw error;
-      
+
       // Parse options from JSONB to string array
       return (data || []).map(q => ({
         ...q,
@@ -81,6 +86,25 @@ const Lesson = () => {
       })) as Question[];
     },
     enabled: !!lessonId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Fetch recovery items
+  const { data: recoveryItems } = useQuery({
+    queryKey: ["user-recovery-items", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("user_shop_items")
+        .select("id, shop_item_id, quantity, shop_items(name, effect_value)")
+        .eq("user_id", user.id)
+        .eq("shop_items.type", "heart_restore")
+        .gt("quantity", 0)
+        .limit(1);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
   });
 
   const isLoading = lessonLoading || questionsLoading;
@@ -100,32 +124,28 @@ const Lesson = () => {
 
     setIsChecking(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      // Simulate small delay for UI feel (optional, but instant is better)
+      // await new Promise(resolve => setTimeout(resolve, 300));
 
-      if (!token) {
-        toast.error("Vui lòng đăng nhập để tiếp tục");
-        navigate("/login");
-        return;
-      }
+      const isCorrectAnswer = selectedAnswer === currentQuestion.correct_index;
 
-      const response = await supabase.functions.invoke("verify-answer", {
-        body: { questionId: currentQuestion.id, selectedIndex: selectedAnswer },
-      });
+      const result: AnswerResult = {
+        isCorrect: isCorrectAnswer,
+        correctIndex: currentQuestion.correct_index,
+        correctAnswer: currentQuestion.options[currentQuestion.correct_index],
+        explanation: currentQuestion.explanation
+      };
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      const result = response.data as AnswerResult;
       setAnswerResult(result);
-      setIsCorrect(result.isCorrect);
+      setIsCorrect(isCorrectAnswer);
       setIsAnswered(true);
 
-      if (result.isCorrect) {
+      if (isCorrectAnswer) {
         setCorrectCount((prev) => prev + 1);
+        // Play success sound logic here if added later
       } else {
         setHearts((prev) => prev - 1);
+        // Play error sound logic here if added later
       }
     } catch (error) {
       console.error("Error verifying answer:", error);
@@ -137,8 +157,13 @@ const Lesson = () => {
 
   const handleContinue = async () => {
     if (hearts <= 0) {
-      toast.error("Hết tim! Thử lại sau nhé.");
-      navigate("/learn");
+      // Check if have recovery items
+      if (recoveryItems && recoveryItems.length > 0) {
+        setShowHeartRecoveryDialog(true);
+      } else {
+        toast.error("Hết tim! Không có thuốc hồi phục.");
+        navigate("/learn");
+      }
       return;
     }
 
@@ -219,7 +244,48 @@ const Lesson = () => {
           toast.success("Bạn đã hoàn thành bài này trước đó!");
         }
       }
+      // Invalidate queries to ensure Learn page shows new progress
+      queryClient.invalidateQueries({ queryKey: ["user_progress"] });
+      queryClient.invalidateQueries({ queryKey: ["all-lessons"] });
+
       navigate("/learn");
+    }
+  };
+
+  const handleUseRecoveryItem = async () => {
+    if (!recoveryItems || recoveryItems.length === 0 || !user?.id) return;
+
+    setIsUsingRecoveryItem(true);
+    try {
+      const item = recoveryItems[0];
+      const recoveryAmount = item.shop_items.effect_value;
+
+      // Update hearts
+      setHearts(Math.min(5, hearts + recoveryAmount));
+
+      // Decrease item quantity
+      if (item.quantity > 1) {
+        const { error: updateError } = await supabase
+          .from("user_shop_items")
+          .update({ quantity: item.quantity - 1, used_at: new Date().toISOString() })
+          .eq("id", item.id);
+        if (updateError) throw updateError;
+      } else {
+        const { error: deleteError } = await supabase
+          .from("user_shop_items")
+          .delete()
+          .eq("id", item.id);
+        if (deleteError) throw deleteError;
+      }
+
+      toast.success(`+${recoveryAmount} ❤️ Tiếp tục học thôi!`);
+      setShowHeartRecoveryDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["user-recovery-items"] });
+    } catch (error) {
+      console.error("Error using recovery item:", error);
+      toast.error("Có lỗi xảy ra khi sử dụng item");
+    } finally {
+      setIsUsingRecoveryItem(false);
     }
   };
 
@@ -342,7 +408,7 @@ const Lesson = () => {
               {isChecking ? "Đang kiểm tra..." : "Kiểm tra"}
             </Button>
           ) : (
-            <motion.div 
+            <motion.div
               className="space-y-3"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -391,6 +457,57 @@ const Lesson = () => {
           )}
         </div>
       </div>
+
+      {/* Heart Recovery Dialog */}
+      <Dialog open={showHeartRecoveryDialog} onOpenChange={setShowHeartRecoveryDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Heart className="size-5 text-red-500" fill="currentColor" />
+              Tim hết rồi!
+            </DialogTitle>
+            <DialogDescription>
+              Bạn có muốn sử dụng thuốc hồi phục trái tim để tiếp tục học?
+            </DialogDescription>
+          </DialogHeader>
+
+          {recoveryItems && recoveryItems.length > 0 && (
+            <Card className="p-4 bg-blue-50 dark:bg-blue-950">
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                {recoveryItems[0].shop_items.name}
+              </p>
+              <p className="text-lg font-bold text-blue-700 dark:text-blue-300 mt-2">
+                +{recoveryItems[0].shop_items.effect_value} ❤️
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                Số lượng còn: x{recoveryItems[0].quantity}
+              </p>
+            </Card>
+          )}
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                setShowHeartRecoveryDialog(false);
+                navigate("/learn");
+              }}
+              disabled={isUsingRecoveryItem}
+            >
+              Thoát
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleUseRecoveryItem}
+              disabled={isUsingRecoveryItem}
+            >
+              {isUsingRecoveryItem && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Sử dụng
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

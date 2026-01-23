@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/learn", icon: BookOpen, label: "Học" },
-  { to: "/alphabet", icon: Languages, label: "Bảng chữ" },
+  { to: "/ipa", icon: Languages, label: "Phát âm" },
   { to: "/leaderboard", icon: Trophy, label: "Xếp hạng" },
   { to: "/quests", icon: Target, label: "Nhiệm vụ" },
   { to: "/profile", icon: User, label: "Hồ sơ" },
