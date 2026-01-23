@@ -40,9 +40,9 @@ const Landing = () => {
             className="flex flex-col items-center text-center"
           >
             <DuoMascot size="xl" />
-            
+
             <h1 className="mt-6 text-4xl font-black text-primary-foreground">
-              LingoMaster
+              Learn English
             </h1>
             <p className="mt-3 text-lg font-semibold text-primary-foreground/90">
               Học ngôn ngữ miễn phí.
@@ -75,7 +75,7 @@ const Landing = () => {
             viewport={{ once: true }}
             className="text-center text-2xl font-bold text-foreground"
           >
-            Tại sao chọn LingoMaster?
+            Tại sao chọn Learn English?
           </motion.h2>
 
           <div className="mt-8 grid gap-4">
@@ -122,7 +122,7 @@ const Landing = () => {
       <footer className="border-t border-border bg-card px-4 py-6">
         <div className="mx-auto max-w-lg text-center">
           <p className="text-sm text-muted-foreground">
-            © 2024 LingoMaster. Made with ❤️
+            © 2024 Learn English. Made with ❤️
           </p>
         </div>
       </footer>

@@ -77,7 +77,7 @@ const Register = () => {
 
       toast({
         title: "Đăng ký thành công!",
-        description: "Chào mừng bạn đến với LingoMaster",
+        description: "Chào mừng bạn đến với Learn English",
       });
       navigate("/learn");
     } catch (error) {
