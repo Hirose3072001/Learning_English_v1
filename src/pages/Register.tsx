@@ -134,7 +134,17 @@ const Register = () => {
           className="mt-8"
         >
           <div className="flex justify-center">
-            <DuoMascot size="lg" />
+            <motion.img
+              src="/monster_green_down.png"
+              alt="Mascot"
+              className="w-40 h-40 object-contain drop-shadow-xl"
+              animate={{ y: [2, -20, 2] }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
           </div>
 
           <Card className="mt-6">

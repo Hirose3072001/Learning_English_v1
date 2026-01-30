@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;600;700&display=swap');
 
 @layer base {
   :root {
@@ -128,14 +128,26 @@
     @apply border-border;
   }
 
+  html {
+    /* Reserve space for scrollbar to prevent layout shift */
+    scrollbar-gutter: stable;
+  }
+
   body {
-    @apply bg-background text-foreground font-nunito antialiased;
+    @apply bg-background text-foreground font-montserrat font-semibold antialiased;
+    /* Prevent Radix UI from adding padding (conflicts with scrollbar-gutter) */
+    padding-right: 0 !important;
+  }
+
+  /* Ensure fixed elements (like TopBar) don't shift when scrollbar-gutter is active */
+  header.fixed {
+    right: 0;
   }
 }
 
 @layer utilities {
-  .font-nunito {
-    font-family: 'Nunito', sans-serif;
+  .font-montserrat {
+    font-family: 'Montserrat', sans-serif;
   }
 
   .shadow-duo {

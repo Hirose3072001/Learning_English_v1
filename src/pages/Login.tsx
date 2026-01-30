@@ -31,8 +31,8 @@ const Login = () => {
       if (error) {
         toast({
           title: "Đăng nhập thất bại",
-          description: error.message === "Invalid login credentials" 
-            ? "Email hoặc mật khẩu không đúng" 
+          description: error.message === "Invalid login credentials"
+            ? "Email hoặc mật khẩu không đúng"
             : error.message,
           variant: "destructive",
         });
@@ -98,7 +98,17 @@ const Login = () => {
           className="mt-8"
         >
           <div className="flex justify-center">
-            <DuoMascot size="lg" />
+            <motion.img
+              src="/monster_green_down.png"
+              alt="Mascot"
+              className="w-40 h-40 object-contain drop-shadow-xl"
+              animate={{ y: [2, -20, 2] }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
           </div>
 
           <Card className="mt-6">

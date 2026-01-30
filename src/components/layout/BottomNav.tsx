@@ -1,10 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { BookOpen, Trophy, Target, User, Languages } from "lucide-react";
+import { BookOpen, Trophy, Target, User, Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/learn", icon: BookOpen, label: "Học" },
-  { to: "/ipa", icon: Languages, label: "Phát âm" },
+  { to: "/game", icon: Gamepad2, label: "Game" },
   { to: "/leaderboard", icon: Trophy, label: "Xếp hạng" },
   { to: "/quests", icon: Target, label: "Nhiệm vụ" },
   { to: "/profile", icon: User, label: "Hồ sơ" },

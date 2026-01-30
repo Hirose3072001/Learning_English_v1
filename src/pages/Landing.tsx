@@ -39,7 +39,17 @@ const Landing = () => {
             transition={{ duration: 0.6 }}
             className="flex flex-col items-center text-center"
           >
-            <DuoMascot size="xl" />
+            <motion.img
+              src="/monster_green_down.png"
+              alt="Mascot"
+              className="w-80 h-80 object-contain drop-shadow-xl"
+              animate={{ y: [5, -20, 5] }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
 
             <h1 className="mt-6 text-4xl font-black text-primary-foreground">
               Learn English

@@ -64,7 +64,7 @@ const Admin = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card shadow-duo">
-        <div className="w-full max-w-screen-2xl mx-auto flex h-16 items-center justify-between px-4">
+        <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -81,7 +81,7 @@ const Admin = () => {
         </div>
       </header>
 
-      <main className="w-full px-4 py-6">
+      <main className="w-full max-w-7xl mx-auto px-4 py-6">
         {/* Stats Cards */}
         <div className="mb-6 grid gap-3 grid-cols-2 md:grid-cols-4">
           <Card className="border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">

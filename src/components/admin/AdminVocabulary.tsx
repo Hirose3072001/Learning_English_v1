@@ -55,6 +55,7 @@ interface Lesson {
   title: string;
   unit_id: string;
   units?: { title: string };
+  order_index?: number;
 }
 
 interface Vocabulary {
@@ -66,7 +67,7 @@ interface Vocabulary {
   example: string | null;
   order_index: number;
   is_active: boolean;
-  lessons?: { title: string; units?: { title: string } };
+  lessons?: { title: string; units?: { title: string }; order_index?: number };
 }
 
 interface AdminVocabularyProps {
@@ -78,6 +79,7 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVocab, setEditingVocab] = useState<Vocabulary | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
+  const [selectedLesson, setSelectedLesson] = useState<string>("all");
   const [formData, setFormData] = useState({
     lesson_id: "",
     word: "",
@@ -94,10 +96,10 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
       const [vocabRes, unitsRes, lessonsRes] = await Promise.all([
         supabase
           .from("vocabulary")
-          .select("*, lessons(title, units(title))")
+          .select("*, lessons(title, order_index, units(title))")
           .order("order_index"),
         supabase.from("units").select("id, title").order("order_index"),
-        supabase.from("lessons").select("id, title, unit_id, units(title)").order("order_index"),
+        supabase.from("lessons").select("id, title, unit_id, order_index, units(title)").order("order_index"),
       ]);
 
       if (vocabRes.error) throw vocabRes.error;
@@ -302,12 +304,39 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
     event.target.value = "";
   };
 
-  const filteredVocabulary = selectedUnit === "all"
-    ? vocabulary
-    : vocabulary.filter((v) => {
+  const getLessonDisplay = (lessonId: string | undefined) => {
+    if (!lessonId) return { number: "?", title: "Unknown" };
+
+    const lesson = lessons.find(l => l.id === lessonId);
+    if (!lesson) return { number: "?", title: "Unknown" };
+
+    // Get all lessons in the same unit, sorted by order_index
+    const unitLessons = lessons
+      .filter(l => l.unit_id === lesson.unit_id)
+      .sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+
+    // Find index of current lesson (0-based) and add 1
+    const index = unitLessons.findIndex(l => l.id === lessonId);
+    return {
+      number: index !== -1 ? index + 1 : "?",
+      title: lesson.title
+    };
+  };
+
+  const filteredVocabulary = vocabulary.filter((v) => {
+    // Filter by Unit
+    if (selectedUnit !== "all") {
       const lesson = lessons.find((l) => l.id === v.lesson_id);
-      return lesson?.unit_id === selectedUnit;
-    });
+      if (lesson?.unit_id !== selectedUnit) return false;
+    }
+
+    // Filter by Lesson
+    if (selectedLesson !== "all") {
+      if (v.lesson_id !== selectedLesson) return false;
+    }
+
+    return true;
+  });
 
   const filteredLessons = selectedUnit === "all"
     ? lessons
@@ -333,7 +362,13 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+            <Select
+              value={selectedUnit}
+              onValueChange={(value) => {
+                setSelectedUnit(value);
+                setSelectedLesson("all"); // Reset lesson filter when unit changes
+              }}
+            >
               <SelectTrigger className="w-32 sm:w-40">
                 <SelectValue placeholder="Lọc chương" />
               </SelectTrigger>
@@ -344,6 +379,27 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
                     {unit.title}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={selectedLesson}
+              onValueChange={setSelectedLesson}
+            >
+              <SelectTrigger className="w-32 sm:w-40">
+                <SelectValue placeholder="Lọc bài học" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả bài</SelectItem>
+                {filteredLessons.map((lesson) => {
+                  const display = getLessonDisplay(lesson.id);
+                  const unitPrefix = selectedUnit === "all" && lesson.units?.title ? `${lesson.units.title} - ` : "";
+                  return (
+                    <SelectItem key={lesson.id} value={lesson.id}>
+                      {unitPrefix}Bài {display.number}: {display.title}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -384,7 +440,8 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
               <TableHead className="min-w-[100px]">Từ vựng</TableHead>
               <TableHead className="min-w-[80px]">Nghĩa</TableHead>
               <TableHead className="w-20 hidden md:table-cell">Phát âm</TableHead>
-              <TableHead className="w-24">Bài học</TableHead>
+              <TableHead className="w-24">Chương</TableHead>
+              <TableHead className="min-w-[150px]">Bài học</TableHead>
               <TableHead className="w-16">T.Thái</TableHead>
               <TableHead className="w-20 text-right">Thao tác</TableHead>
             </TableRow>
@@ -411,12 +468,15 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
                   {vocab.pronunciation || "-"}
                 </TableCell>
                 <TableCell>
-                  <div>
-                    <p className="line-clamp-1">{vocab.lessons?.title}</p>
-                    <p className="text-muted-foreground line-clamp-1">
-                      {vocab.lessons?.units?.title}
-                    </p>
-                  </div>
+                  <p className="line-clamp-2 md:line-clamp-1 text-sm">{vocab.lessons?.units?.title}</p>
+                </TableCell>
+                <TableCell>
+                  <p className="text-sm font-medium">
+                    {(() => {
+                      const display = getLessonDisplay(vocab.lesson_id);
+                      return `Bài ${display.number}: ${display.title}`;
+                    })()}
+                  </p>
                 </TableCell>
                 <TableCell>
                   <span
@@ -465,7 +525,7 @@ const AdminVocabulary = ({ onUpdate }: AdminVocabularyProps) => {
             ))}
             {filteredVocabulary.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Chưa có từ vựng nào
                 </TableCell>
               </TableRow>
