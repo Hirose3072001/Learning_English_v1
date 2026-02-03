@@ -22,7 +22,7 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Game from "./pages/Game";
 import WordDefense from "./pages/WordDefense";
-import SuperSlime from "./pages/SuperSlime";
+import WordRunner from "./pages/WordRunner";
 import NotFound from "./pages/NotFound";
 
 // Contexts
@@ -100,8 +100,8 @@ const router = createBrowserRouter([
         element: <WordDefense />,
       },
       {
-        path: "/game/super-slime",
-        element: <SuperSlime />,
+        path: "/game/word-runner",
+        element: <WordRunner />,
       },
       {
         path: "/leaderboard",

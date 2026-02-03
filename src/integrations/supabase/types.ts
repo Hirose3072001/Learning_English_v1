@@ -75,6 +75,7 @@ export type Database = {
           user_id: string
           username: string
           xp: number
+          high_score: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -89,6 +90,7 @@ export type Database = {
           user_id: string
           username: string
           xp?: number
+          high_score?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           user_id?: string
           username?: string
           xp?: number
+          high_score?: number | null
         }
         Relationships: []
       }

@@ -34,9 +34,9 @@ const games = [
         status: "coming-soon" as const,
     },
     {
-        id: "super-slime",
-        title: "Super Slime",
-        description: "Chạy và nhảy cùng Slime xanh (Mario Style)",
+        id: "word-runner",
+        title: "Word Runner",
+        description: "Chạy và nhảy để thu thập từ vựng",
         icon: Gamepad2,
         color: "from-green-500 to-lime-500",
         status: "active" as const,

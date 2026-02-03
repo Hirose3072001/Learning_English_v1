@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Heart, Trophy, Zap, RotateCcw, Pause, Play, Home } from "lucide-react";
+import { Heart, Trophy, Zap, RotateCcw, Pause, Play, Home, RefreshCw } from "lucide-react";
 import { useNavigate, useBlocker, type Location } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,7 @@ const WordDefense = () => {
     const [combo, setCombo] = useState(0);
     const [level, setLevel] = useState(1);
     const [castleDamaged, setCastleDamaged] = useState(false);
+    const [showRestartConfirm, setShowRestartConfirm] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const gameLoopRef = useRef<number>();
     const spawnTimerRef = useRef<number>();
@@ -381,6 +382,16 @@ const WordDefense = () => {
         setInputValue("");
         setCombo(0);
         setLevel(1);
+        setShowRestartConfirm(false);
+    };
+
+    const requestRestart = () => {
+        if (gameStatus === "playing") setGameStatus("paused");
+        setShowRestartConfirm(true);
+    };
+
+    const cancelRestart = () => {
+        setShowRestartConfirm(false);
     };
 
     // Toggle pause
@@ -448,10 +459,13 @@ const WordDefense = () => {
                         <Button
                             size="icon"
                             variant="secondary"
-                            onClick={() => navigate("/game")}
+                            onClick={() => {
+                                if (gameStatus === "playing") setGameStatus("paused");
+                                setShowRestartConfirm(true);
+                            }}
                             className="rounded-full"
                         >
-                            <Home className="size-4" />
+                            <RefreshCw className="size-4" />
                         </Button>
                     </div>
                 </div>
@@ -509,7 +523,7 @@ const WordDefense = () => {
                 {/* Castle Area - Image */}
                 <div className="absolute left-0 right-0 z-40 flex items-end justify-center pointer-events-none" style={{ top: "50%", bottom: 0 }}>
                     <img
-                        src={castleDamaged ? `/castle_damage.png?t=${Date.now()}` : `/castle_new.png?t=${Date.now()}`}
+                        src={castleDamaged ? "/castle_damage_v2.png" : "/castle_v2.png"}
                         alt="Castle"
                         className="w-full h-full object-cover object-top transition-all duration-100"
                     />
@@ -532,18 +546,41 @@ const WordDefense = () => {
                 </div>
             </div>
 
+            {/* Restart Confirmation Modal (Added) */}
+            {
+                showRestartConfirm && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[70]">
+                        <Card className="p-8 max-w-sm w-full text-center space-y-6 border-4 border-primary/20 bg-background/95 shadow-xl">
+                            <h2 className="text-2xl font-bold">Chơi lại từ đầu?</h2>
+                            <p className="text-muted-foreground">Điểm số hiện tại của bạn sẽ bị mất.</p>
+                            <div className="space-y-3"> {/* Changed to vertical stack for better mobile fit, or keep horizontal? Keeping horizontal to match previous code logic but user asked for size match. Vertical buttons are more mobile friendly usually, but WordRunner uses vertical. Let's stick to horizontal if it fits or switch to vertical if matching WordRunner explicitly. WordRunner uses vertical stack. Let's try to match WordRunner's vertical stack for consistency if possible, OR keep horizontal if it looks better here. I will stick to the previous horizontal layout but fix the container width first as requested. actually, WordRunner uses vertical stack (space-y-3). I'll stick to horizontal here as it was, just fixing the Card width. */}
+                                <div className="flex gap-3 justify-center">
+                                    <Button onClick={cancelRestart} size="lg" variant="outline" className="flex-1">
+                                        Hủy
+                                    </Button>
+                                    <Button onClick={restartGame} size="lg" variant="default" className="bg-amber-500 hover:bg-amber-600 flex-1">
+                                        <RefreshCw className="size-5 mr-2" />
+                                        Chơi lại
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                )
+            }
+
             {/* Pause Overlay - Only show if NOT blocked by navigation */}
             {
                 gameStatus === "paused" && blocker.state !== "blocked" && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <Card className="p-8 text-center space-y-4">
+                        <Card className="p-8 max-w-sm w-full text-center space-y-6 border-4 border-primary/20 bg-background/95 shadow-xl">
                             <h2 className="text-2xl font-bold">Tạm dừng</h2>
-                            <div className="flex gap-3">
-                                <Button onClick={togglePause} size="lg" variant="default">
+                            <div className="flex gap-3 justify-center">
+                                <Button onClick={togglePause} size="lg" variant="default" className="flex-1">
                                     <Play className="size-5 mr-2" />
                                     Tiếp tục
                                 </Button>
-                                <Button onClick={() => navigate("/game")} size="lg" variant="outline">
+                                <Button onClick={() => navigate("/game")} size="lg" variant="outline" className="flex-1">
                                     <Home className="size-5 mr-2" />
                                     Thoát
                                 </Button>
@@ -557,15 +594,15 @@ const WordDefense = () => {
             {
                 blocker.state === "blocked" && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[60]">
-                        <Card className="p-8 text-center space-y-4">
+                        <Card className="p-8 max-w-sm w-full text-center space-y-6 border-4 border-primary/20 bg-background/95 shadow-xl">
                             <h2 className="text-2xl font-bold">Thoát game?</h2>
                             <p className="text-muted-foreground">Tiến trình chơi sẽ bị mất.</p>
                             <div className="flex gap-3 justify-center">
-                                <Button onClick={() => blocker.reset()} size="lg" variant="default">
+                                <Button onClick={() => blocker.reset()} size="lg" variant="default" className="flex-1">
                                     <Play className="size-5 mr-2" />
                                     Ở lại
                                 </Button>
-                                <Button onClick={() => blocker.proceed()} size="lg" variant="outline">
+                                <Button onClick={() => blocker.proceed()} size="lg" variant="outline" className="flex-1">
                                     <Home className="size-5 mr-2" />
                                     Thoát
                                 </Button>
@@ -583,7 +620,7 @@ const WordDefense = () => {
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                         >
-                            <Card className="p-8 text-center space-y-6 max-w-md">
+                            <Card className="p-8 max-w-sm w-full text-center space-y-6 border-4 border-primary/20 bg-background/95 shadow-xl">
                                 <div className="text-6xl">💀</div>
                                 <h2 className="text-3xl font-bold">Game Over!</h2>
                                 <div className="space-y-2">
@@ -595,12 +632,12 @@ const WordDefense = () => {
                                         Level {level} • Combo tối đa: x{(1 + combo * 0.5).toFixed(1)}
                                     </p>
                                 </div>
-                                <div className="flex gap-3">
-                                    <Button onClick={restartGame} size="lg" className="flex-1">
+                                <div className="flex gap-3 justify-center">
+                                    <Button onClick={restartGame} size="lg" className="flex-1 bg-green-600 hover:bg-green-700 shadow-md">
                                         <RotateCcw className="size-5 mr-2" />
                                         Chơi lại
                                     </Button>
-                                    <Button onClick={() => navigate("/game")} variant="outline" size="lg">
+                                    <Button onClick={() => navigate("/game")} variant="outline" size="lg" className="flex-1 shadow-sm">
                                         <Home className="size-5 mr-2" />
                                         Thoát
                                     </Button>
