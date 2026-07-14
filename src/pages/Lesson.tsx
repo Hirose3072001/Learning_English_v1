@@ -96,13 +96,13 @@ const Lesson = () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
         .from("user_shop_items")
-        .select("id, shop_item_id, quantity, shop_items(name, effect_value)")
+        .select("id, shop_item_id, quantity, shop_items!inner(name, effect_value)")
         .eq("user_id", user.id)
         .eq("shop_items.type", "heart_restore")
         .gt("quantity", 0)
         .limit(1);
       if (error) throw error;
-      return data || [];
+      return (data || []).filter(item => item.shop_items != null);
     },
     enabled: !!user?.id,
   });
@@ -247,13 +247,14 @@ const Lesson = () => {
       // Invalidate queries to ensure Learn page shows new progress
       queryClient.invalidateQueries({ queryKey: ["user_progress"] });
       queryClient.invalidateQueries({ queryKey: ["all-lessons"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
 
       navigate("/learn");
     }
   };
 
   const handleUseRecoveryItem = async () => {
-    if (!recoveryItems || recoveryItems.length === 0 || !user?.id) return;
+    if (!recoveryItems || recoveryItems.length === 0 || !recoveryItems[0]?.shop_items || !user?.id) return;
 
     setIsUsingRecoveryItem(true);
     try {
@@ -281,6 +282,7 @@ const Lesson = () => {
       toast.success(`+${recoveryAmount} ❤️ Tiếp tục học thôi!`);
       setShowHeartRecoveryDialog(false);
       queryClient.invalidateQueries({ queryKey: ["user-recovery-items"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
     } catch (error) {
       console.error("Error using recovery item:", error);
       toast.error("Có lỗi xảy ra khi sử dụng item");
@@ -471,7 +473,7 @@ const Lesson = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {recoveryItems && recoveryItems.length > 0 && (
+          {recoveryItems && recoveryItems.length > 0 && recoveryItems[0]?.shop_items && (
             <Card className="p-4 bg-blue-50 dark:bg-blue-950">
               <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
                 {recoveryItems[0].shop_items.name}

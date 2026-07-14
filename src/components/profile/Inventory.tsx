@@ -38,11 +38,11 @@ export const Inventory = () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
         .from("user_shop_items")
-        .select("id, shop_item_id, quantity, shop_items(name, description, type, effect_value, icon)")
+        .select("id, shop_item_id, quantity, shop_items!inner(name, description, type, effect_value, icon)")
         .eq("user_id", user.id)
         .gt("quantity", 0);
       if (error) throw error;
-      return data as InventoryItem[];
+      return (data || []).filter(item => item.shop_items != null) as InventoryItem[];
     },
     enabled: !!user?.id,
   });

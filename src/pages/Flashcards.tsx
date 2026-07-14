@@ -184,54 +184,55 @@ const Flashcards = () => {
   const isCompleted = currentIndex >= totalCards - 1 && (knownCards.has(currentCard?.id || "") || unknownCards.has(currentCard?.id || ""));
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="fixed left-0 right-0 top-0 z-50 bg-background/95 backdrop-blur px-4 py-3 border-b">
-        <div className="mx-auto flex max-w-lg items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={handleBack}>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Unified Sticky Header + Progress Bar */}
+      <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur border-b shadow-xs">
+        {/* Top Row: Chapter Info & Actions */}
+        <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3">
+          <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0">
             <ArrowLeft className="size-5" />
           </Button>
-          <div className="flex-1">
-            <h1 className="font-bold text-sm truncate">{lesson?.title}</h1>
-            <p className="text-xs text-muted-foreground">
-              {(lesson as any)?.units?.title} • Flashcard
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-sm truncate">{lesson?.title || "Bài học"}</h1>
+            <p className="text-xs text-muted-foreground truncate">
+              {(lesson as any)?.units?.title ? `${(lesson as any).units.title} • ` : ""}Flashcard
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handleShuffle}>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="icon" onClick={handleShuffle} title="Tráo thẻ">
               <Shuffle className="size-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleReset}>
+            <Button variant="ghost" size="icon" onClick={handleReset} title="Học lại từ đầu">
               <RotateCcw className="size-4" />
             </Button>
           </div>
         </div>
+
+        {/* Bottom Row: Progress Counter & Bar */}
+        <div className="bg-muted/20 border-t border-border/40 px-4 py-2.5">
+          <div className="mx-auto max-w-lg">
+            <div className="flex items-center justify-between mb-1.5 text-xs sm:text-sm font-medium">
+              <span className="text-muted-foreground bg-background px-2.5 py-0.5 rounded-full border shadow-2xs">
+                Thẻ {totalCards > 0 ? currentIndex + 1 : 0} / {totalCards}
+              </span>
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1 text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full">
+                  <CheckCircle2 className="size-3.5" />
+                  {knownCards.size}
+                </span>
+                <span className="flex items-center gap-1 text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                  <XCircle className="size-3.5" />
+                  {unknownCards.size}
+                </span>
+              </div>
+            </div>
+            <Progress value={progress} className="h-1.5" />
+          </div>
+        </div>
       </header>
 
-      {/* Progress */}
-      <div className="fixed left-0 right-0 top-[57px] z-40 bg-background px-4 py-2">
-        <div className="mx-auto max-w-lg">
-          <div className="flex items-center justify-between mb-2 text-sm">
-            <span className="text-muted-foreground">
-              {currentIndex + 1} / {totalCards}
-            </span>
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1 text-green-600">
-                <CheckCircle2 className="size-4" />
-                {knownCards.size}
-              </span>
-              <span className="flex items-center gap-1 text-destructive">
-                <XCircle className="size-4" />
-                {unknownCards.size}
-              </span>
-            </div>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-      </div>
-
       {/* Main Content */}
-      <main className="mx-auto max-w-lg px-4 pb-32 pt-28">
+      <main className="mx-auto w-full max-w-lg px-4 pb-32 pt-6 flex-1">
         {isCompleted ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}

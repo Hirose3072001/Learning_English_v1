@@ -410,20 +410,20 @@ const WordDefense = () => {
     }
 
     return (
-        <div className="relative overflow-hidden bg-gradient-to-b from-sky-400 to-sky-200 dark:from-sky-900 dark:to-sky-700" style={{ height: "calc(100vh - 60px)" }}>
+        <div className="relative overflow-hidden bg-gradient-to-b from-sky-400 to-sky-200 dark:from-sky-900 dark:to-sky-700 w-full h-[calc(100vh-9rem)]">
             {/* Game Header */}
             <div className="absolute top-0 left-0 right-0 z-20 p-4 bg-gradient-to-b from-black/20 to-transparent">
                 {/* Level Display - Centered Top */}
 
 
-                <div className="flex items-center justify-between max-w-4xl mx-auto">
+                <div className="flex items-center justify-between w-full max-w-3xl mx-auto px-2 sm:px-4">
                     {/* Lives */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5 sm:gap-1">
                         {Array.from({ length: 5 }).map((_, i) => (
                             <Heart
                                 key={i}
                                 className={cn(
-                                    "size-6",
+                                    "size-4 sm:size-6",
                                     i < lives ? "fill-red-500 text-red-500" : "fill-gray-400 text-gray-400"
                                 )}
                             />
@@ -431,30 +431,30 @@ const WordDefense = () => {
                     </div>
 
                     {/* Wave & Score */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                         {/* Wave Badge */}
-                        <div className="bg-white/90 dark:bg-gray-800/90 px-4 py-2 rounded-full shadow-sm">
+                        <div className="bg-white/90 dark:bg-gray-800/90 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full shadow-sm text-xs sm:text-base">
                             <span className="font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                 Đợt {level}
                             </span>
                         </div>
 
                         {/* Score Badge */}
-                        <div className="flex items-center gap-2 bg-white/90 dark:bg-gray-800/90 px-4 py-2 rounded-full shadow-sm">
-                            <Trophy className="size-5 text-yellow-500" />
-                            <span className="font-bold text-lg">{score}</span>
+                        <div className="flex items-center gap-1 sm:gap-2 bg-white/90 dark:bg-gray-800/90 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full shadow-sm text-xs sm:text-base">
+                            <Trophy className="size-4 sm:size-5 text-yellow-500" />
+                            <span className="font-bold">{score}</span>
                         </div>
                     </div>
 
                     {/* Controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                         <Button
                             size="icon"
                             variant="secondary"
                             onClick={togglePause}
-                            className="rounded-full"
+                            className="size-8 sm:size-10 rounded-full"
                         >
-                            {gameStatus === "playing" ? <Pause className="size-4" /> : <Play className="size-4" />}
+                            {gameStatus === "playing" ? <Pause className="size-3.5 sm:size-4" /> : <Play className="size-3.5 sm:size-4" />}
                         </Button>
                         <Button
                             size="icon"
@@ -463,9 +463,9 @@ const WordDefense = () => {
                                 if (gameStatus === "playing") setGameStatus("paused");
                                 setShowRestartConfirm(true);
                             }}
-                            className="rounded-full"
+                            className="size-8 sm:size-10 rounded-full"
                         >
-                            <RefreshCw className="size-4" />
+                            <RefreshCw className="size-3.5 sm:size-4" />
                         </Button>
                     </div>
                 </div>
@@ -530,8 +530,7 @@ const WordDefense = () => {
                 </div>
 
                 {/* Input Area - Inside Castle - larger */}
-                {/* Input Area - Inside Castle - larger */}
-                <div className="absolute bottom-32 left-0 right-0 px-4 z-[1000]">
+                <div className="absolute bottom-8 left-0 right-0 px-4 z-[1000]">
                     <div className="max-w-md mx-auto">
                         <Input
                             ref={inputRef}

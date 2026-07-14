@@ -2,14 +2,16 @@ import { Flame, Gem, Heart, BookOpen } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { checkAndResetStreak } from "@/lib/profile";
 
 export const TopBar = () => {
   const { user } = useAuth();
 
   const { data: profile, isLoading } = useQuery({
-    queryKey: ["profile-stats", user?.id],
+    queryKey: ["profile", "stats", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
+      await checkAndResetStreak(user.id);
       const { data, error } = await supabase
         .from("profiles")
         .select("streak_count, gems, hearts")

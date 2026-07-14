@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
+import { checkAndResetStreak } from "@/lib/profile";
 
 interface Quest {
   id: string;
@@ -84,30 +85,10 @@ const Quests = () => {
         .maybeSingle();
       if (error) throw error;
       
-      // Check if streak should be reset
-      if (data) {
-        const today = new Date().toISOString().split("T")[0];
-        const lastActivity = data.last_activity_date;
-        const lastActivityDate = lastActivity ? new Date(lastActivity) : null;
-        const todayDate = new Date(today);
-        
-        // If last activity was more than 1 day ago, reset streak
-        if (lastActivityDate) {
-          const timeDiff = todayDate.getTime() - lastActivityDate.getTime();
-          const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
-          
-          if (daysDiff > 1) {
-            // Reset streak if gap > 1 day
-            const { error: resetError } = await supabase
-              .from("profiles")
-              .update({ streak_count: 0 })
-              .eq("user_id", user.id);
-            
-            if (!resetError) {
-              data.streak_count = 0;
-            }
-          }
-        }
+      // Check and reset streak if needed (respects streak protections)
+      const wasReset = await checkAndResetStreak(user.id);
+      if (wasReset && data) {
+        data.streak_count = 0;
       }
       
       return data;

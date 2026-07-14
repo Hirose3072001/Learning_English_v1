@@ -61,6 +61,9 @@ const Login = () => {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/learn`,
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
 

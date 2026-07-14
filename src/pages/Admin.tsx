@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Users, BookOpen, Layers, ArrowLeft, Shield, BookText, HelpCircle, Zap } from "lucide-react";
+import { Users, BookOpen, Layers, ArrowLeft, Shield, BookText, HelpCircle, Zap, Target, Trophy } from "lucide-react";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminUnits } from "@/components/admin/AdminUnits";
 import { AdminLessons } from "@/components/admin/AdminLessons";
 import { AdminQuestions } from "@/components/admin/AdminQuestions";
 import AdminVocabulary from "@/components/admin/AdminVocabulary";
 import AdminIPA from "@/components/admin/AdminIPA";
+import { AdminQuests } from "@/components/admin/AdminQuests";
+import { AdminAchievements } from "@/components/admin/AdminAchievements";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -135,7 +137,7 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6 h-auto bg-muted p-1">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto bg-muted p-1 gap-1">
             <TabsTrigger value="users" className="gap-1.5 py-2 text-xs sm:text-sm">
               <Users className="size-4" />
               <span className="hidden sm:inline">Người dùng</span>
@@ -159,6 +161,14 @@ const Admin = () => {
             <TabsTrigger value="ipa" className="gap-1.5 py-2 text-xs sm:text-sm">
               <Zap className="size-4" />
               <span className="hidden sm:inline">Phát âm</span>
+            </TabsTrigger>
+            <TabsTrigger value="quests" className="gap-1.5 py-2 text-xs sm:text-sm">
+              <Target className="size-4" />
+              <span className="hidden sm:inline">Nhiệm vụ</span>
+            </TabsTrigger>
+            <TabsTrigger value="achievements" className="gap-1.5 py-2 text-xs sm:text-sm">
+              <Trophy className="size-4" />
+              <span className="hidden sm:inline">Thành tựu</span>
             </TabsTrigger>
           </TabsList>
 
@@ -184,6 +194,14 @@ const Admin = () => {
 
           <TabsContent value="ipa">
             <AdminIPA />
+          </TabsContent>
+
+          <TabsContent value="quests">
+            <AdminQuests onUpdate={fetchStats} />
+          </TabsContent>
+
+          <TabsContent value="achievements">
+            <AdminAchievements onUpdate={fetchStats} />
           </TabsContent>
         </Tabs>
       </main>

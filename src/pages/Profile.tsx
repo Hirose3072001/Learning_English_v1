@@ -15,7 +15,10 @@ import {
   Target,
   Shield,
   ShoppingBag,
-  Package
+  Package,
+  Gem,
+  Star,
+  Award
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -48,14 +51,84 @@ const Profile = () => {
     enabled: !!user?.id,
   });
 
+  const { data: dbAchievements = [] } = useQuery({
+    queryKey: ["profile-achievements"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("achievements" as any)
+        .select("*")
+        .eq("is_active", true)
+        .order("order_index", { ascending: true })
+        .order("condition_value", { ascending: true });
+
+      if (error) return [];
+      return (data || []) as any[];
+    },
+  });
+
+  const getAchievementIcon = (iconName: string) => {
+    switch (iconName) {
+      case "book": return BookOpen;
+      case "zap": return Zap;
+      case "flame": return Flame;
+      case "target": return Target;
+      case "gem": return Gem;
+      case "star": return Star;
+      case "award": return Award;
+      default: return Trophy;
+    }
+  };
+
+  const { data: leaderboardInfo = { rank: 0, total: 0 } } = useQuery({
+    queryKey: ["profile-leaderboard-rank", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles_leaderboard")
+        .select("user_id, xp")
+        .order("xp", { ascending: false });
+
+      if (error || !data) return { rank: 0, total: 0 };
+      const idx = data.findIndex((item) => item.user_id === user?.id);
+      return {
+        rank: idx >= 0 ? idx + 1 : data.length + 1,
+        total: data.length,
+      };
+    },
+  });
+
+  const getUserLeagueInfo = (xp: number, rank: number) => {
+    if (rank === 1) return { name: "Vàng", color: "text-amber-500 font-bold" };
+    if (rank === 2) return { name: "Bạc", color: "text-slate-400 font-bold" };
+    if (rank === 3) return { name: "Đồng", color: "text-amber-700 font-bold" };
+    if (xp >= 3000) return { name: "Kim Cương", color: "text-cyan-500 font-bold" };
+    if (xp >= 1500) return { name: "Bạch Kim", color: "text-emerald-500 font-bold" };
+    if (xp >= 600) return { name: "Vàng", color: "text-amber-500 font-bold" };
+    if (xp >= 200) return { name: "Bạc", color: "text-slate-400 font-bold" };
+    return { name: "Đồng", color: "text-amber-700 font-bold" };
+  };
+
+  const currentLeague = getUserLeagueInfo(profile?.xp || 0, leaderboardInfo.rank);
+
   const stats = [
     { icon: Zap, label: "Tổng XP", value: (profile?.xp || 0).toLocaleString(), color: "text-primary" },
     { icon: Flame, label: "Streak", value: `${profile?.streak_count || 0} ngày`, color: "text-warning" },
-    { icon: Trophy, label: "Hạng", value: "Đồng", color: "text-gold" },
+    { icon: Trophy, label: "Hạng", value: currentLeague.name, color: currentLeague.color },
     { icon: Calendar, label: "Ngày học", value: profile?.created_at ? new Date(profile.created_at).toLocaleDateString("vi-VN") : "-", color: "text-secondary" },
   ];
 
-  const achievements = [
+  const achievements = dbAchievements.length > 0 ? dbAchievements.map((item) => {
+    let unlocked = false;
+    if (item.condition_type === "xp") unlocked = (profile?.xp || 0) >= item.condition_value;
+    else if (item.condition_type === "streak") unlocked = (profile?.streak_count || 0) >= item.condition_value;
+    else if (item.condition_type === "lessons") unlocked = (profile?.xp || 0) > 0 && ((profile?.xp || 0) / 10 >= item.condition_value);
+    return {
+      icon: getAchievementIcon(item.icon),
+      title: item.title,
+      description: item.description,
+      unlocked
+    };
+  }) : [
     { icon: BookOpen, title: "Người mới", description: "Hoàn thành bài học đầu tiên", unlocked: (profile?.xp || 0) > 0 },
     { icon: Flame, title: "Đốt cháy", description: "Duy trì 7 ngày streak", unlocked: (profile?.streak_count || 0) >= 7 },
     { icon: Target, title: "Chính xác", description: "Hoàn thành 1 bài không sai", unlocked: false },
