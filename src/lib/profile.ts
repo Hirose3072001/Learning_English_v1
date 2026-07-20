@@ -81,7 +81,7 @@ export async function checkAndResetStreak(userId: string): Promise<boolean> {
 
     // Streak is broken! Check if user has an active streak protection
     const { data: protections, error: protError } = await supabase
-      .from("streak_protections")
+      .from("streak_protections" as any)
       .select("id")
       .eq("user_id", userId)
       .gt("expires_at", new Date().toISOString())

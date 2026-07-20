@@ -37,7 +37,7 @@ export const Inventory = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
-        .from("user_shop_items")
+        .from("user_shop_items" as any)
         .select("id, shop_item_id, quantity, shop_items!inner(name, description, type, effect_value, icon)")
         .eq("user_id", user.id)
         .gt("quantity", 0);
@@ -87,13 +87,13 @@ export const Inventory = () => {
         if (currentItem) {
           if (currentItem.quantity > 1) {
             const { error: updateError } = await supabase
-              .from("user_shop_items")
+              .from("user_shop_items" as any)
               .update({ quantity: currentItem.quantity - 1, used_at: new Date().toISOString() })
               .eq("id", inventoryId);
             if (updateError) throw updateError;
           } else {
             const { error: deleteError } = await supabase
-              .from("user_shop_items")
+              .from("user_shop_items" as any)
               .delete()
               .eq("id", inventoryId);
             if (deleteError) throw deleteError;
@@ -107,7 +107,7 @@ export const Inventory = () => {
         const expiresAt = new Date(today.getTime() + item.effect_value * 24 * 60 * 60 * 1000);
 
         const { error: protectError } = await supabase
-          .from("streak_protections")
+          .from("streak_protections" as any)
           .insert({
             user_id: user.id,
             protection_days: item.effect_value,
@@ -121,13 +121,13 @@ export const Inventory = () => {
         if (currentItem) {
           if (currentItem.quantity > 1) {
             const { error: updateError } = await supabase
-              .from("user_shop_items")
+              .from("user_shop_items" as any)
               .update({ quantity: currentItem.quantity - 1, used_at: new Date().toISOString() })
               .eq("id", inventoryId);
             if (updateError) throw updateError;
           } else {
             const { error: deleteError } = await supabase
-              .from("user_shop_items")
+              .from("user_shop_items" as any)
               .delete()
               .eq("id", inventoryId);
             if (deleteError) throw deleteError;

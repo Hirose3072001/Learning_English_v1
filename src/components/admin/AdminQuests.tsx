@@ -38,7 +38,7 @@ interface Quest {
   target_type: string;
   target_value: number;
   reward_gems: number;
-  reward_streak: number;
+  reward_streak?: number;
   icon: string | null;
   is_active: boolean;
   created_at: string;

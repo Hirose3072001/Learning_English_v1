@@ -95,7 +95,7 @@ const Lesson = () => {
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
-        .from("user_shop_items")
+        .from("user_shop_items" as any)
         .select("id, shop_item_id, quantity, shop_items!inner(name, effect_value)")
         .eq("user_id", user.id)
         .eq("shop_items.type", "heart_restore")
@@ -267,13 +267,13 @@ const Lesson = () => {
       // Decrease item quantity
       if (item.quantity > 1) {
         const { error: updateError } = await supabase
-          .from("user_shop_items")
+          .from("user_shop_items" as any)
           .update({ quantity: item.quantity - 1, used_at: new Date().toISOString() })
           .eq("id", item.id);
         if (updateError) throw updateError;
       } else {
         const { error: deleteError } = await supabase
-          .from("user_shop_items")
+          .from("user_shop_items" as any)
           .delete()
           .eq("id", item.id);
         if (deleteError) throw deleteError;
