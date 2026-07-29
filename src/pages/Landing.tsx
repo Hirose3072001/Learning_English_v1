@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { DuoMascot } from "@/components/icons/DuoMascot";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Sparkles, Trophy, Users, Zap } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const features = [
   {
@@ -28,6 +29,12 @@ const features = [
 ];
 
 const Landing = () => {
+  const { session } = useAuth();
+
+  if (session) {
+    return <Navigate to="/learn" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}

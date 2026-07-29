@@ -23,7 +23,7 @@ const GRAVITY = 0.5;
 const JUMP_FORCE = -16; // Increased jump
 const MOVE_SPEED = 6;
 const ENEMY_SPEED = 2;
-const LEVEL_LENGTH = 5000;
+let LEVEL_LENGTH = 5000;
 const VIRTUAL_WIDTH = 800; // Reference width for game logic
 const VIRTUAL_HEIGHT = 700; // Reference height for game logic
 const GROUND_Y_OFFSET = 50; // Distance from bottom of screen to ground top
@@ -71,6 +71,8 @@ const WordRunner = () => {
     const [lives, setLives] = useState(3);
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+    const [showReviveConfirm, setShowReviveConfirm] = useState(false);
+    const [isReviving, setIsReviving] = useState(false);
 
     // Puzzle State
     const [targetWord, setTargetWord] = useState<Vocabulary | null>(null);
@@ -78,18 +80,54 @@ const WordRunner = () => {
     const [showPuzzle, setShowPuzzle] = useState(false);
     const [puzzleInput, setPuzzleInput] = useState<string[]>([]);
 
-    // Fetch Vocabulary
-    const { data: vocabulary } = useQuery({
-        queryKey: ["vocabulary-runner"],
+    // Level State
+    const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+    const [activeVocabulary, setActiveVocabulary] = useState<Vocabulary[]>([]);
+    const [isLoadingLevel, setIsLoadingLevel] = useState(false);
+
+    // Fetch Units for Levels (Only those with vocabulary)
+    const { data: units } = useQuery({
+        queryKey: ["game-units"],
         queryFn: async () => {
-            const { data, error } = await supabase
+            // 1. Get lessons that have active vocabulary
+            const { data: vocabData } = await supabase
                 .from("vocabulary")
-                .select("id, word, meaning")
-                .eq("is_active", true)
-                .limit(20);
+                .select("lessons!inner(unit_id)")
+                .eq("is_active", true);
+
+            // 2. Extract unique unit IDs that are playable
+            const playableUnitIds = Array.from(new Set(
+                (vocabData || []).map((v: any) => v.lessons?.unit_id).filter(Boolean)
+            ));
+
+            if (playableUnitIds.length === 0) return [];
+
+            // 3. Fetch those units in order
+            const { data, error } = await supabase
+                .from("units")
+                .select("id, title")
+                .in("id", playableUnitIds)
+                .order("order_index");
+                
             if (error) throw error;
-            return data as Vocabulary[];
+            return data;
         },
+    });
+
+    // Fetch User Inventory for Revive Items
+    const { data: userInventory, refetch: refetchInventory } = useQuery({
+        queryKey: ["game-user-inventory", user?.id],
+        queryFn: async () => {
+            if (!user?.id) return [];
+            const { data, error } = await supabase
+                .from("user_shop_items" as any)
+                .select("id, shop_item_id, quantity, shop_items!inner(name, type)")
+                .eq("user_id", user.id)
+                .gt("quantity", 0);
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!user?.id,
     });
 
     // Navigation Blocker
@@ -288,7 +326,7 @@ const WordRunner = () => {
         }
     }, []);
 
-    const resetLevel = () => {
+    const resetLevel = (vocab: Vocabulary[] = activeVocabulary) => {
         const s = stateRef.current;
 
         // Reset Player
@@ -306,13 +344,13 @@ const WordRunner = () => {
 
         // Pick Target Word
         let word = "HELLO";
-        if (vocabulary && vocabulary.length > 0) {
-            const v = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+        if (vocab && vocab.length > 0) {
+            const v = vocab[Math.floor(Math.random() * vocab.length)];
             word = v.word.toUpperCase();
             setTargetWord(v);
             setPuzzleInput(new Array(word.length).fill(""));
         } else {
-            setTargetWord({ id: "default", word: "HELLO", meaning: "Xin chào" });
+            setTargetWord({ id: "default", word: "HELLO", meaning: "Xin chào" } as any);
             setPuzzleInput(new Array(5).fill(""));
         }
 
@@ -321,6 +359,10 @@ const WordRunner = () => {
         const distractors = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('').sort(() => 0.5 - Math.random()).slice(0, 5);
         const spawnPool = [...targetChars, ...distractors].sort(() => 0.5 - Math.random());
         let spawnIndex = 0;
+        
+        // Dynamically adjust level length to ensure enough platforms for all letters
+        // Each platform takes roughly 500px on average
+        LEVEL_LENGTH = Math.max(6000, 1000 + spawnPool.length * 550);
 
         // 1. Ground - Continuous
         s.entities.platforms.push({
@@ -727,7 +769,13 @@ const WordRunner = () => {
         player.invincibleUntil = Date.now() + 2000; // 2s Invulnerability for blinking effect
 
         if (player.lives <= 0) {
-            die();
+            const hasRevive = userInventory?.some(item => item.shop_items.type === "heart_restore" && item.quantity > 0);
+            if (hasRevive) {
+                setGameState("paused");
+                setShowReviveConfirm(true);
+            } else {
+                die();
+            }
         } else {
             // Respawn Logic: Return to safe start position
             player.x = 100;
@@ -738,6 +786,52 @@ const WordRunner = () => {
             // Also reset flag
             stateRef.current.flag = { state: "idle", angle: 0, vy: 0 };
         }
+    };
+
+    const handleRevive = async () => {
+        setIsReviving(true);
+        try {
+            const reviveItem = userInventory?.find(item => item.shop_items.type === "heart_restore" && item.quantity > 0);
+            if (reviveItem) {
+                if (reviveItem.quantity > 1) {
+                    await supabase
+                        .from("user_shop_items" as any)
+                        .update({ quantity: reviveItem.quantity - 1, used_at: new Date().toISOString() })
+                        .eq("id", reviveItem.id);
+                } else {
+                    await supabase
+                        .from("user_shop_items" as any)
+                        .delete()
+                        .eq("id", reviveItem.id);
+                }
+                await refetchInventory();
+                
+                // Reset player state
+                const { player, camera } = stateRef.current;
+                player.lives = 3;
+                setLives(3);
+                player.dead = false;
+                player.x = 100;
+                player.y = groundY - 200;
+                player.vx = 0;
+                player.vy = 0;
+                camera.x = 0;
+                stateRef.current.flag = { state: "idle", angle: 0, vy: 0 };
+                
+                setShowReviveConfirm(false);
+                setGameState("playing");
+                setTimeout(() => containerRef.current?.focus(), 10);
+            }
+        } catch (e) {
+            console.error("Lỗi khi dùng thuốc hồi sinh:", e);
+        } finally {
+            setIsReviving(false);
+        }
+    };
+
+    const declineRevive = () => {
+        setShowReviveConfirm(false);
+        die();
     };
 
     const die = () => {
@@ -1044,11 +1138,41 @@ const WordRunner = () => {
         setShowRestartConfirm(false);
     };
 
+    const startLevel = async (unitId: string, keepScore: boolean = false) => {
+        setIsLoadingLevel(true);
+        setSelectedUnitId(unitId);
+        try {
+            const { data, error } = await supabase
+                .from("vocabulary")
+                .select("id, word, meaning, lessons!inner(unit_id)")
+                .eq("is_active", true)
+                .eq("lessons.unit_id", unitId)
+                .limit(50);
+                
+            if (error) throw error;
+            
+            const vocab = data as any[];
+            setActiveVocabulary(vocab);
+            
+            setGameState("playing");
+            if (!keepScore) {
+                setScore(0);
+            }
+            setLives(3);
+            resetLevel(vocab);
+            setTimeout(() => containerRef.current?.focus(), 10);
+        } catch (e) {
+            console.error("Failed to start level", e);
+        } finally {
+            setIsLoadingLevel(false);
+        }
+    };
+
     const handleStart = () => {
         setGameState("playing");
         setScore(0);
         setLives(3);
-        resetLevel();
+        resetLevel(activeVocabulary);
         // Force focus to game container
         setTimeout(() => containerRef.current?.focus(), 10);
     };
@@ -1118,11 +1242,27 @@ const WordRunner = () => {
 
                     {/* Overlays - Start / Game Over / Paused / Confirmations */}
                     {/* Z-Index raised to 120 to cover HUD (100) */}
-                    {(gameState !== "playing" || showRestartConfirm || showExitConfirm || showPuzzle) && (
+                    {(gameState !== "playing" || showRestartConfirm || showExitConfirm || showReviveConfirm || showPuzzle) && (
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120]">
                             <Card className="p-6 max-w-[360px] w-full text-center space-y-4 border-4 border-primary/20 bg-background/95 shadow-xl">
-                                {/* 1. Restart Confirmation */}
-                                {showRestartConfirm ? (
+                                {/* 0. Revive Confirmation */}
+                                {showReviveConfirm ? (
+                                    <>
+                                        <h1 className="text-3xl font-black text-red-500 mb-4">HẾT MẠNG!</h1>
+                                        <p className="text-muted-foreground mb-4">Bạn có muốn dùng Thuốc Hồi Trái Tim để tiếp tục không?</p>
+                                        <div className="space-y-3">
+                                            <Button size="lg" className="w-full text-xl h-14 bg-red-500 hover:bg-red-600 font-bold text-white" onClick={handleRevive} disabled={isReviving}>
+                                                {isReviving ? <RefreshCw className="mr-2 size-5 animate-spin" /> : <Heart className="mr-2 size-5 fill-current" />}
+                                                Dùng thuốc (Hồi sinh)
+                                            </Button>
+                                            <Button size="lg" variant="outline" className="w-full text-xl h-14" onClick={declineRevive} disabled={isReviving}>
+                                                Bỏ cuộc
+                                            </Button>
+                                        </div>
+                                    </>
+                                ) :
+                                /* 1. Restart Confirmation */
+                                showRestartConfirm ? (
                                     <>
                                         <h1 className="text-3xl font-black text-amber-500 mb-4">CHƠI LẠI?</h1>
                                         <p className="text-muted-foreground">Điểm số hiện tại của bạn sẽ bị mất.</p>
@@ -1237,20 +1377,46 @@ const WordRunner = () => {
                                                     </Button>
                                                 </>
                                             ) :
-                                                /* 4. Victory */
-                                                gameState === "win" ? (
-                                                    <>
-                                                        <h1 className="text-4xl font-black text-primary mb-4 bg-clip-text text-transparent bg-gradient-to-r from-yellow-500 to-amber-600">
-                                                            VICTORY!
-                                                        </h1>
-                                                        <Trophy className="size-20 text-yellow-500 mx-auto animate-bounce" />
-                                                        <p className="text-muted-foreground">Bạn đã về đích!</p>
-                                                        <p className="text-2xl font-bold">Điểm số: {score}</p>
-                                                        <Button size="lg" className="w-full text-xl h-14" onClick={handleStart}>
-                                                            <RefreshCw className="mr-2 size-5" /> Chơi lại
-                                                        </Button>
-                                                    </>
-                                                ) :
+                                            /* 4. Victory */
+                                            gameState === "win" ? (
+                                                <>
+                                                    <h1 className="text-4xl font-black text-primary mb-2 bg-clip-text text-transparent bg-gradient-to-r from-yellow-500 to-amber-600">
+                                                        VICTORY!
+                                                    </h1>
+                                                    <Trophy className="size-20 text-yellow-500 mx-auto animate-bounce mb-2" />
+                                                    <p className="text-muted-foreground">Bạn đã về đích!</p>
+                                                    <p className="text-2xl font-bold mb-4">Điểm số: {score}</p>
+                                                    
+                                                    {(() => {
+                                                        const currentIndex = units?.findIndex(u => u.id === selectedUnitId) ?? -1;
+                                                        const nextUnit = currentIndex !== -1 && units ? units[currentIndex + 1] : null;
+                                                        const firstUnit = units && units.length > 0 ? units[0] : null;
+                                                        
+                                                        return (
+                                                            <div className="space-y-3 w-full">
+                                                                {nextUnit ? (
+                                                                    <Button size="lg" className="w-full text-xl h-14 bg-green-500 hover:bg-green-600 text-white font-bold" onClick={() => startLevel(nextUnit.id, true)} disabled={isLoadingLevel}>
+                                                                        {isLoadingLevel ? <RefreshCw className="mr-2 size-5 animate-spin" /> : <Play className="mr-2 size-5 fill-current" />}
+                                                                        Chơi tiếp
+                                                                    </Button>
+                                                                ) : (
+                                                                    <p className="font-bold text-green-600 mb-2">Bạn đã hoàn thành tất cả các màn!</p>
+                                                                )}
+                                                                
+                                                                <Button size="lg" variant="outline" className="w-full text-xl h-14 font-bold border-2" onClick={() => {
+                                                                    if (firstUnit) startLevel(firstUnit.id, false);
+                                                                }} disabled={isLoadingLevel}>
+                                                                    <RefreshCw className="mr-2 size-5" /> Chơi lại
+                                                                </Button>
+                                                                
+                                                                <Button size="lg" variant="ghost" className="w-full text-xl h-14 text-muted-foreground hover:bg-slate-100" onClick={() => navigate("/game")} disabled={isLoadingLevel}>
+                                                                    <Home className="mr-2 size-5" /> Thoát
+                                                                </Button>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </>
+                                            ) :
                                                     /* 5. Paused */
                                                     gameState === "paused" ? (
                                                         <>
@@ -1260,8 +1426,8 @@ const WordRunner = () => {
                                                             <Button size="lg" className="w-full text-xl h-14" onClick={togglePause}>
                                                                 <Play className="mr-2 size-5" /> Tiếp tục
                                                             </Button>
-                                                            <Button size="lg" variant="outline" className="w-full text-xl h-14" onClick={requestHome}>
-                                                                <Home className="mr-2 size-5" /> Về trang chủ
+                                                            <Button size="lg" variant="outline" className="w-full text-xl h-14" onClick={() => navigate("/game")}>
+                                                                <Home className="mr-2 size-5" /> Thoát game
                                                             </Button>
                                                         </>
                                                     ) :
@@ -1271,14 +1437,24 @@ const WordRunner = () => {
                                                                 <h1 className="text-4xl font-black text-primary mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-500 to-emerald-600">
                                                                     Word Runner
                                                                 </h1>
-                                                                <div className="grid grid-cols-2 gap-4 text-left p-4 bg-muted/50 rounded-lg text-sm">
+                                                                <div className="grid grid-cols-2 gap-4 text-left p-4 bg-muted/50 rounded-lg text-sm mb-4">
                                                                     <div>⬅️ ➡️</div> <div>Di chuyển</div>
                                                                     <div>SPACE</div> <div>Nhảy</div>
-                                                                    <div>⬇️</div> <div>Ngồi</div>
                                                                 </div>
-                                                                <Button size="lg" className="w-full text-xl animate-pulse h-14" onClick={handleStart}>
-                                                                    START GAME
-                                                                </Button>
+                                                                
+                                                                {units && units.length > 0 ? (
+                                                                    <Button 
+                                                                        size="lg" 
+                                                                        className="w-full text-xl h-14 bg-green-500 hover:bg-green-600 animate-pulse font-bold text-white" 
+                                                                        onClick={() => startLevel(units[0].id)}
+                                                                        disabled={isLoadingLevel}
+                                                                    >
+                                                                        {isLoadingLevel ? <RefreshCw className="mr-2 size-5 animate-spin" /> : <Play className="mr-2 size-5 fill-current" />}
+                                                                        BẮT ĐẦU NGAY
+                                                                    </Button>
+                                                                ) : (
+                                                                    <div className="text-center text-slate-500 py-4 font-medium animate-pulse">Đang tải dữ liệu...</div>
+                                                                )}
                                                             </>
                                                         )}
                             </Card>
