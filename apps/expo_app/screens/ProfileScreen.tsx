@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
+import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Flame, Zap, Trophy, Calendar, LogOut, BookOpen, Target, Shield, Settings, Gem, Star, Award } from 'lucide-react-native';
 import { supabase } from '../supabase/client';
@@ -162,7 +163,7 @@ export default function ProfileScreen({ navigation }: any) {
 
         {/* Actions */}
         <View style={styles.actionsList}>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/settings')}>
             <Settings size={20} color="#333" />
             <Text style={styles.actionBtnText}>Cài đặt</Text>
           </TouchableOpacity>

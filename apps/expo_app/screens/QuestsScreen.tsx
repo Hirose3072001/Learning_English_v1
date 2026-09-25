@@ -77,6 +77,32 @@ export default function QuestsScreen() {
     enabled: !!user?.id,
   });
 
+  const { data: xpLogs, isLoading: xpLogsLoading } = useQuery({
+    queryKey: ['xp-logs', user?.id, dailyStart, weeklyStart],
+    queryFn: async () => {
+      if (!user?.id) return { daily: 0, weekly: 0 };
+      const { data: dailyData, error: dailyError } = await supabase
+        .from('xp_logs')
+        .select('amount')
+        .eq('user_id', user.id)
+        .gte('created_at', `${dailyStart}T00:00:00.000Z`);
+      if (dailyError) throw dailyError;
+
+      const { data: weeklyData, error: weeklyError } = await supabase
+        .from('xp_logs')
+        .select('amount')
+        .eq('user_id', user.id)
+        .gte('created_at', `${weeklyStart}T00:00:00.000Z`);
+      if (weeklyError) throw weeklyError;
+
+      const dailyXP = dailyData?.reduce((sum, log) => sum + log.amount, 0) || 0;
+      const weeklyXP = weeklyData?.reduce((sum, log) => sum + log.amount, 0) || 0;
+
+      return { daily: dailyXP, weekly: weeklyXP };
+    },
+    enabled: !!user?.id,
+  });
+
   const { data: userQuests, isLoading: userQuestsLoading } = useQuery({
     queryKey: ['user-quests', user?.id, dailyStart, weeklyStart],
     queryFn: async () => {
@@ -88,7 +114,7 @@ export default function QuestsScreen() {
     enabled: !!user?.id,
   });
 
-  const isLoading = authLoading || questsLoading || profileLoading || lessonCountsLoading || userQuestsLoading;
+  const isLoading = authLoading || questsLoading || profileLoading || lessonCountsLoading || xpLogsLoading || userQuestsLoading;
 
   const getQuestProgress = (quest: any) => {
     const periodStart = quest.type === 'daily' ? dailyStart : weeklyStart;
@@ -104,7 +130,7 @@ export default function QuestsScreen() {
         progress = quest.type === 'daily' ? lessonCounts?.daily || 0 : lessonCounts?.weekly || 0;
         break;
       case 'xp':
-        progress = profile?.xp || 0;
+        progress = quest.type === 'daily' ? xpLogs?.daily || 0 : xpLogs?.weekly || 0;
         break;
       case 'streak':
         const today = new Date().toISOString().split('T')[0];

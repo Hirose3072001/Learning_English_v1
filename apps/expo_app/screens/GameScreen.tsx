@@ -37,7 +37,7 @@ const games = [
     icon: Gamepad2,
     color: "#22c55e", // green
     bgColor: "rgba(34, 197, 94, 0.1)",
-    status: "coming-soon", // Set as coming soon on Mobile since it's not implemented yet
+    status: "active",
   },
   {
     id: "listening-game",
@@ -76,6 +76,8 @@ export default function GameScreen({ navigation }: any) {
               onPress={() => {
                 if (game.id === 'word-defense') {
                   navigation.navigate('WordDefense');
+                } else if (game.id === 'word-runner') {
+                  navigation.navigate('WordRunner');
                 }
               }}
             >

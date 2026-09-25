@@ -174,7 +174,7 @@ const Profile = () => {
           </AvatarFallback>
         </Avatar>
         <h1 className="mt-4 text-2xl font-bold">
-          {user?.user_metadata?.username || "Người học"}
+          {profile?.display_name || user?.user_metadata?.username || "Người học"}
         </h1>
         <p className="text-muted-foreground">{user?.email}</p>
 

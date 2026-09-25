@@ -142,10 +142,17 @@ const Lesson = () => {
 
       if (isCorrectAnswer) {
         setCorrectCount((prev) => prev + 1);
-        // Play success sound logic here if added later
       } else {
-        setHearts((prev) => prev - 1);
-        // Play error sound logic here if added later
+        const newHearts = hearts - 1;
+        setHearts(newHearts);
+
+        // When hearts hit 0, ask user if they want to use a potion
+        if (newHearts <= 0) {
+          if (recoveryItems && recoveryItems.length > 0 && recoveryItems[0]?.shop_items) {
+            setShowHeartRecoveryDialog(true);
+          }
+          // If no potion — handleContinue will navigate away
+        }
       }
     } catch (error) {
       console.error("Error verifying answer:", error);
@@ -157,13 +164,9 @@ const Lesson = () => {
 
   const handleContinue = async () => {
     if (hearts <= 0) {
-      // Check if have recovery items
-      if (recoveryItems && recoveryItems.length > 0) {
-        setShowHeartRecoveryDialog(true);
-      } else {
-        toast.error("Hết tim! Không có thuốc hồi phục.");
-        navigate("/learn");
-      }
+      // No potion or user declined — end lesson
+      toast.error("Hết mạng! Không còn thuốc hồi phục.");
+      navigate("/learn");
       return;
     }
 
@@ -220,9 +223,10 @@ const Lesson = () => {
                 display_name,
                 xp: lesson.xp_reward,
               });
-
               if (insertError) {
                 console.error("Error creating profile:", insertError);
+              } else {
+                await supabase.from("xp_logs").insert({ user_id: user.id, amount: lesson.xp_reward, source: 'lesson' });
               }
             } else {
               const newXp = (profile.xp || 0) + lesson.xp_reward;
@@ -233,6 +237,8 @@ const Lesson = () => {
 
               if (xpError) {
                 console.error("Error updating XP:", xpError);
+              } else {
+                await supabase.from("xp_logs").insert({ user_id: user.id, amount: lesson.xp_reward, source: 'lesson' });
               }
             }
 
@@ -261,31 +267,32 @@ const Lesson = () => {
       const item = recoveryItems[0];
       const recoveryAmount = item.shop_items.effect_value;
 
-      // Update hearts
-      setHearts(Math.min(5, hearts + recoveryAmount));
-
-      // Decrease item quantity
       if (item.quantity > 1) {
-        const { error: updateError } = await supabase
+        const { error } = await supabase
           .from("user_shop_items" as any)
           .update({ quantity: item.quantity - 1, used_at: new Date().toISOString() })
-          .eq("id", item.id);
-        if (updateError) throw updateError;
+          .eq("id", item.id)
+          .eq("user_id", user.id);
+        if (error) throw error;
       } else {
-        const { error: deleteError } = await supabase
+        const { error } = await supabase
           .from("user_shop_items" as any)
           .delete()
-          .eq("id", item.id);
-        if (deleteError) throw deleteError;
+          .eq("id", item.id)
+          .eq("user_id", user.id);
+        if (error) throw error;
       }
 
+      setHearts(Math.min(5, recoveryAmount));
       toast.success(`+${recoveryAmount} ❤️ Tiếp tục học thôi!`);
       setShowHeartRecoveryDialog(false);
+      // Invalidate all inventory-related queries so counts update everywhere
       queryClient.invalidateQueries({ queryKey: ["user-recovery-items"] });
+      queryClient.invalidateQueries({ queryKey: ["user-inventory-details"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error using recovery item:", error);
-      toast.error("Có lỗi xảy ra khi sử dụng item");
+      toast.error(error?.message || "Có lỗi xảy ra khi sử dụng item");
     } finally {
       setIsUsingRecoveryItem(false);
     }
@@ -461,29 +468,34 @@ const Lesson = () => {
       </div>
 
       {/* Heart Recovery Dialog */}
-      <Dialog open={showHeartRecoveryDialog} onOpenChange={setShowHeartRecoveryDialog}>
+      <Dialog open={showHeartRecoveryDialog} onOpenChange={(open) => {
+        // If user closes dialog without using potion, navigate away
+        if (!open && !isUsingRecoveryItem) {
+          setShowHeartRecoveryDialog(false);
+          navigate("/learn");
+        }
+      }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Heart className="size-5 text-red-500" fill="currentColor" />
-              Tim hết rồi!
+              Hết mạng rồi!
             </DialogTitle>
             <DialogDescription>
-              Bạn có muốn sử dụng thuốc hồi phục trái tim để tiếp tục học?
+              Bạn có muốn sử dụng thuốc hồi phục trái tim để tiếp tục học không?
             </DialogDescription>
           </DialogHeader>
 
           {recoveryItems && recoveryItems.length > 0 && recoveryItems[0]?.shop_items && (
-            <Card className="p-4 bg-blue-50 dark:bg-blue-950">
-              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-                {recoveryItems[0].shop_items.name}
-              </p>
-              <p className="text-lg font-bold text-blue-700 dark:text-blue-300 mt-2">
-                +{recoveryItems[0].shop_items.effect_value} ❤️
-              </p>
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                Số lượng còn: x{recoveryItems[0].quantity}
-              </p>
+            <Card className="p-4 bg-red-50 border-red-100">
+              <div className="flex items-center gap-3">
+                <Heart className="size-8 text-red-500 shrink-0" fill="currentColor" />
+                <div>
+                  <p className="font-bold text-sm">{recoveryItems[0].shop_items.name}</p>
+                  <p className="text-lg font-bold text-red-600">+{recoveryItems[0].shop_items.effect_value} ❤️</p>
+                  <p className="text-xs text-muted-foreground">Số lượng còn: x{recoveryItems[0].quantity}</p>
+                </div>
+              </div>
             </Card>
           )}
 

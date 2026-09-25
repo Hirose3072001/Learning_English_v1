@@ -23,6 +23,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import LessonScreen from './screens/LessonScreen';
 import FlashcardsScreen from './screens/FlashcardsScreen';
 import WordDefenseScreen from './screens/WordDefenseScreen';
+import WordRunnerScreen from './screens/WordRunnerScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -127,6 +128,7 @@ function NavigationRoot() {
             <Stack.Screen name="Lesson" component={LessonScreen} />
             <Stack.Screen name="Flashcards" component={FlashcardsScreen} />
             <Stack.Screen name="WordDefense" component={WordDefenseScreen} />
+            <Stack.Screen name="WordRunner" component={WordRunnerScreen} />
           </>
         ) : (
           // Unauthenticated Screens

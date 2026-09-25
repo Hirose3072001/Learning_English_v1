@@ -288,7 +288,7 @@ export default function LearnScreen({ navigation }: any) {
       <Modal
         visible={!!flashcardModalUnit}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setFlashcardModalUnit(null)}
       >
         <View style={styles.modalOverlay}>
@@ -508,8 +508,23 @@ const styles = StyleSheet.create({
   charTextBlue: { color: '#2563eb' },
   charPronunciation: { fontSize: 12, color: '#777', marginBottom: 4 },
   charExample: { fontSize: 14, fontWeight: '600', color: '#333' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.6)', 
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  modalContent: { 
+    width: '90%',
+    backgroundColor: '#fff', 
+    borderRadius: 24, 
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#e5e5e5' },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
   modalCloseText: { fontSize: 16, color: '#777', fontWeight: 'bold' },

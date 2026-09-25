@@ -24,6 +24,7 @@ import Game from "./pages/Game";
 import WordDefense from "./pages/WordDefense";
 import WordRunner from "./pages/WordRunner";
 import NotFound from "./pages/NotFound";
+import Settings from "./pages/Settings";
 
 // Contexts
 import { AuthProvider } from "./contexts/AuthContext";
@@ -114,6 +115,10 @@ const router = createBrowserRouter([
       {
         path: "/profile",
         element: <Profile />,
+      },
+      {
+        path: "/settings",
+        element: <Settings />,
       },
       {
         path: "/admin",

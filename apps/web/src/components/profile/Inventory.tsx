@@ -188,7 +188,7 @@ export const Inventory = () => {
           </div>
           <div className="grid gap-3">
             {heartItems.map((invItem) => (
-              <Card key={invItem.id} className="p-4">
+              <Card key={invItem.id} className="p-4 border-red-100 bg-red-50/30">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -198,19 +198,17 @@ export const Inventory = () => {
                     <p className="text-sm text-muted-foreground">
                       Hồi phục +{invItem.shop_items.effect_value} trái tim
                     </p>
+                    <p className="mt-1 text-xs text-orange-600 font-medium">
+                      ⚠️ Tự động kích hoạt khi hết mạng trong bài học
+                    </p>
                   </div>
                   <Button
-                    onClick={() => handleUseItem(invItem.id, invItem.shop_items)}
-                    disabled={
-                      usingId !== null ||
-                      (profile && profile.hearts >= profile.max_hearts)
-                    }
+                    disabled
                     size="sm"
+                    variant="outline"
+                    className="shrink-0 opacity-50 cursor-not-allowed"
                   >
-                    {usingId === invItem.id && (
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                    )}
-                    Sử dụng
+                    Tự động
                   </Button>
                 </div>
               </Card>

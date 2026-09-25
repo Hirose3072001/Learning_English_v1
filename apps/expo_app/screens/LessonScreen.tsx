@@ -18,6 +18,7 @@ export default function LessonScreen({ route, navigation }: any) {
   const [hearts, setHearts] = useState(5);
   const [correctCount, setCorrectCount] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
+  const [isUsingRecoveryItem, setIsUsingRecoveryItem] = useState(false);
 
   const { data: lesson, isLoading: lessonLoading } = useQuery({
     queryKey: ['lesson', lessonId],
@@ -48,6 +49,24 @@ export default function LessonScreen({ route, navigation }: any) {
     enabled: !!lessonId,
   });
 
+  // Fetch recovery items from inventory
+  const { data: recoveryItems } = useQuery({
+    queryKey: ['user-recovery-items', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('user_shop_items' as any)
+        .select('id, shop_item_id, quantity, shop_items!inner(name, effect_value)')
+        .eq('user_id', user.id)
+        .eq('shop_items.type', 'heart_restore')
+        .gt('quantity', 0)
+        .limit(1);
+      if (error) throw error;
+      return (data || []).filter((item: any) => item.shop_items != null);
+    },
+    enabled: !!user?.id,
+  });
+
   const isLoading = lessonLoading || questionsLoading;
   const currentQuestion = questions?.[currentQuestionIndex];
   const totalQuestions = questions?.length || 0;
@@ -75,7 +94,60 @@ export default function LessonScreen({ route, navigation }: any) {
       if (isCorrectAnswer) {
         setCorrectCount((prev) => prev + 1);
       } else {
-        setHearts((prev) => prev - 1);
+        const newHearts = hearts - 1;
+        setHearts(newHearts);
+
+        // When hearts hit 0, ask user if they want to use a potion
+        if (newHearts <= 0 && recoveryItems && recoveryItems.length > 0 && (recoveryItems[0] as any)?.shop_items) {
+          const item = recoveryItems[0] as any;
+          const recoveryAmount = item.shop_items.effect_value;
+
+          Alert.alert(
+            '❤️ Hết mạng rồi!',
+            `Bạn có muốn dùng thuốc hồi phục +${recoveryAmount} mạng không? (Còn lại: x${item.quantity})`,
+            [
+              {
+                text: 'Thoát',
+                style: 'cancel',
+                onPress: () => navigation.goBack(),
+              },
+              {
+                text: 'Sử dụng',
+                onPress: async () => {
+                  setIsUsingRecoveryItem(true);
+                  try {
+                    if (item.quantity > 1) {
+                      const { error } = await supabase
+                        .from('user_shop_items' as any)
+                        .update({ quantity: item.quantity - 1, used_at: new Date().toISOString() })
+                        .eq('id', item.id)
+                        .eq('user_id', user?.id);
+                      if (error) throw error;
+                    } else {
+                      const { error } = await supabase
+                        .from('user_shop_items' as any)
+                        .delete()
+                        .eq('id', item.id)
+                        .eq('user_id', user?.id);
+                      if (error) throw error;
+                    }
+                    // Invalidate all inventory-related queries
+                    queryClient.invalidateQueries({ queryKey: ['user-recovery-items'] });
+                    queryClient.invalidateQueries({ queryKey: ['user-inventory-details'] });
+                    queryClient.invalidateQueries({ queryKey: ['profile'] });
+                    setHearts(Math.min(5, recoveryAmount));
+                  } catch (err: any) {
+                    console.error('Use recovery item failed:', err);
+                    Alert.alert('Lỗi', err?.message || 'Không thể sử dụng thuốc. Vui lòng thử lại.');
+                  } finally {
+                    setIsUsingRecoveryItem(false);
+                  }
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+        }
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Có lỗi xảy ra, vui lòng thử lại');
@@ -86,7 +158,7 @@ export default function LessonScreen({ route, navigation }: any) {
 
   const handleContinue = async () => {
     if (hearts <= 0) {
-      Alert.alert('Hết tim!', 'Bạn đã hết tim. Vui lòng quay lại màn hình chính.', [
+      Alert.alert('Hết mạng!', 'Bạn đã hết mạng và không còn thuốc hồi phục. Vui lòng quay lại.', [
         { text: 'Thoát', onPress: () => navigation.goBack() }
       ]);
       return;
@@ -120,6 +192,7 @@ export default function LessonScreen({ route, navigation }: any) {
           const { data: profile } = await supabase.from('profiles').select('xp').eq('user_id', user.id).maybeSingle();
           if (profile) {
             await supabase.from('profiles').update({ xp: profile.xp + lesson.xp_reward }).eq('user_id', user.id);
+            await supabase.from('xp_logs').insert({ user_id: user.id, amount: lesson.xp_reward, source: 'lesson' });
           }
         }
       }
