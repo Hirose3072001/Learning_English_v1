@@ -11,6 +11,7 @@ import {
   KeyRound,
   Chrome,
   Info,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,18 +204,29 @@ const Settings = () => {
 
         {/* Avatar preview */}
         <div className="flex justify-center mb-8">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt="Avatar"
-              className="size-24 rounded-full object-cover border-4 border-primary/20 shadow-md"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            />
-          ) : (
-            <div className="size-24 rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20">
-              <User className="size-10 text-primary" />
-            </div>
-          )}
+          <div className="relative group">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Avatar"
+                className="size-24 rounded-full object-cover border-4 border-primary/20 shadow-md"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <div className="size-24 rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20">
+                <User className="size-10 text-primary" />
+              </div>
+            )}
+            
+            {isEditing && (
+              <button 
+                onClick={() => toast({ title: "Thông báo", description: "Tính năng đang phát triển" })}
+                className="absolute bottom-0 right-0 size-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg border-2 border-white hover:scale-110 transition-transform"
+              >
+                <Plus className="size-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-5">
@@ -264,24 +276,7 @@ const Settings = () => {
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="avatarUrl" className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
-              URL ảnh đại diện
-            </Label>
-            {isEditing ? (
-              <Input
-                id="avatarUrl"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://example.com/avatar.png"
-                className="focus-visible:ring-primary border-2"
-              />
-            ) : (
-              <p className="px-4 py-3 rounded-xl border-2 border-border text-sm font-medium truncate">
-                {avatarUrl || <span className="text-muted-foreground italic">Chưa có ảnh</span>}
-              </p>
-            )}
-          </div>
+
 
           {isEditing && (
             <div className="flex gap-3 pt-2">

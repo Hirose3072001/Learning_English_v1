@@ -10,6 +10,7 @@ import { useAuth } from './hooks/useAuth';
 
 // Layout Components
 import TopBar from './components/TopBar';
+import AITutorModal from './components/AITutorModal';
 
 // Screens
 import LandingScreen from './screens/LandingScreen';
@@ -23,6 +24,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import LessonScreen from './screens/LessonScreen';
 import FlashcardsScreen from './screens/FlashcardsScreen';
 import WordDefenseScreen from './screens/WordDefenseScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import WordRunnerScreen from './screens/WordRunnerScreen';
 
 const Stack = createNativeStackNavigator();
@@ -108,6 +110,7 @@ function MainAppLayout() {
     <View style={{ flex: 1 }}>
       <TopBar />
       <MainTabs />
+      <AITutorModal />
     </View>
   );
 }
@@ -129,6 +132,7 @@ function NavigationRoot() {
             <Stack.Screen name="Flashcards" component={FlashcardsScreen} />
             <Stack.Screen name="WordDefense" component={WordDefenseScreen} />
             <Stack.Screen name="WordRunner" component={WordRunnerScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
           </>
         ) : (
           // Unauthenticated Screens

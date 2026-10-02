@@ -10,6 +10,8 @@ export const AppLayout = () => {
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isGameRoute = location.pathname.startsWith("/game/");
 
+  const isMainRoute = ["/learn", "/game", "/leaderboard", "/quests", "/profile"].includes(location.pathname);
+
   return (
     <div className={cn("min-h-screen bg-background", !isLessonRoute && "pb-20")}>
       {!isLessonRoute && <TopBar />}
@@ -26,7 +28,7 @@ export const AppLayout = () => {
       {!isLessonRoute && <BottomNav />}
       
       {/* AI Tutor Assistant Floating Button */}
-      <AITutorModal />
+      {isMainRoute && <AITutorModal />}
     </div>
   );
 };

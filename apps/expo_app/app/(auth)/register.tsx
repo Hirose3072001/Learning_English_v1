@@ -1,11 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+
   const handleRegister = () => {
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+    setError('');
     // Navigate to the main app tabs after registration
     router.replace('/(tabs)/learn');
   };
@@ -41,8 +50,18 @@ export default function RegisterScreen() {
           <TextInput
             placeholder="Mật khẩu"
             secureTextEntry
+            value={password}
+            onChangeText={setPassword}
             className="w-full bg-gray-100 rounded-2xl px-4 py-4 text-lg border-2 border-transparent focus:border-primary focus:bg-blue-50"
           />
+          <TextInput
+            placeholder="Xác nhận mật khẩu"
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            className="w-full bg-gray-100 rounded-2xl px-4 py-4 text-lg border-2 border-transparent focus:border-primary focus:bg-blue-50"
+          />
+          {error ? <Text className="text-red-500 font-semibold px-2">{error}</Text> : null}
         </View>
 
         <TouchableOpacity 

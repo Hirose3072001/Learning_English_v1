@@ -20,15 +20,23 @@ export default function QuestsScreen() {
   const queryClient = useQueryClient();
 
   // Get current period starts
-  const { dailyStart, weeklyStart } = useMemo(() => {
+  const { dailyStart, weeklyStart, dailyStartISO, weeklyStartISO } = useMemo(() => {
     const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    
+    const localToday = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     const daily = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
     const dayOfWeek = now.getDay();
     const weekStart = new Date(daily);
     weekStart.setDate(daily.getDate() - dayOfWeek);
+    const localWeekStart = `${weekStart.getFullYear()}-${pad(weekStart.getMonth() + 1)}-${pad(weekStart.getDate())}`;
+    
     return {
-      dailyStart: daily.toISOString().split('T')[0],
-      weeklyStart: weekStart.toISOString().split('T')[0],
+      dailyStart: localToday,
+      weeklyStart: localWeekStart,
+      dailyStartISO: daily.toISOString(),
+      weeklyStartISO: weekStart.toISOString(),
     };
   }, []);
 
@@ -61,7 +69,7 @@ export default function QuestsScreen() {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('completed', true)
-        .gte('completed_at', `${dailyStart}T00:00:00.000Z`);
+        .gte('completed_at', dailyStartISO);
       if (dailyError) throw dailyError;
 
       const { count: weeklyCount, error: weeklyError } = await supabase
@@ -69,7 +77,7 @@ export default function QuestsScreen() {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('completed', true)
-        .gte('completed_at', `${weeklyStart}T00:00:00.000Z`);
+        .gte('completed_at', weeklyStartISO);
       if (weeklyError) throw weeklyError;
 
       return { daily: dailyCount || 0, weekly: weeklyCount || 0 };
@@ -85,14 +93,14 @@ export default function QuestsScreen() {
         .from('xp_logs')
         .select('amount')
         .eq('user_id', user.id)
-        .gte('created_at', `${dailyStart}T00:00:00.000Z`);
+        .gte('created_at', dailyStartISO);
       if (dailyError) throw dailyError;
 
       const { data: weeklyData, error: weeklyError } = await supabase
         .from('xp_logs')
         .select('amount')
         .eq('user_id', user.id)
-        .gte('created_at', `${weeklyStart}T00:00:00.000Z`);
+        .gte('created_at', weeklyStartISO);
       if (weeklyError) throw weeklyError;
 
       const dailyXP = dailyData?.reduce((sum, log) => sum + log.amount, 0) || 0;
@@ -133,8 +141,7 @@ export default function QuestsScreen() {
         progress = quest.type === 'daily' ? xpLogs?.daily || 0 : xpLogs?.weekly || 0;
         break;
       case 'streak':
-        const today = new Date().toISOString().split('T')[0];
-        progress = profile?.last_activity_date === today ? 1 : 0;
+        progress = profile?.last_activity_date === dailyStart ? 1 : 0;
         break;
     }
 
@@ -161,11 +168,10 @@ export default function QuestsScreen() {
       }, { onConflict: 'user_id,quest_id,period_start' });
       if (questError) throw questError;
 
-      const today = new Date().toISOString().split('T')[0];
       const { data: profileData } = await supabase.from('profiles').select('gems').eq('user_id', user.id).single();
 
       const { error: gemsError } = await supabase.from('profiles')
-        .update({ gems: (profileData?.gems || 0) + quest.reward_gems, last_activity_date: today })
+        .update({ gems: (profileData?.gems || 0) + quest.reward_gems, last_activity_date: dailyStart })
         .eq('user_id', user.id);
       if (gemsError) throw gemsError;
 

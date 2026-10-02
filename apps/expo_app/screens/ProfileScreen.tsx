@@ -1,13 +1,16 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { Flame, Zap, Trophy, Calendar, LogOut, BookOpen, Target, Shield, Settings, Gem, Star, Award } from 'lucide-react-native';
+import { Flame, Zap, Trophy, Calendar, LogOut, BookOpen, Target, Shield, Settings, Gem, Star, Award, Package, ShoppingBag } from 'lucide-react-native';
 import { supabase } from '../supabase/client';
 import { useAuth } from '../hooks/useAuth';
+import { Shop } from '../components/profile/Shop';
+import { Inventory } from '../components/profile/Inventory';
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, loading: authLoading } = useAuth();
+  const [activeTab, setActiveTab] = useState<'profile' | 'inventory' | 'shop'>('profile');
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['profile', user?.id],
@@ -114,14 +117,42 @@ export default function ProfileScreen({ navigation }: any) {
   const progressPercent = (xpInLevel / 1000) * 100;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'profile' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('profile')}
+        >
+          <Shield size={20} color={activeTab === 'profile' ? '#58CC02' : '#a1a1aa'} />
+          <Text style={[styles.tabText, activeTab === 'profile' && styles.tabTextActive]}>Hồ sơ</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'inventory' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('inventory')}
+        >
+          <Package size={20} color={activeTab === 'inventory' ? '#58CC02' : '#a1a1aa'} />
+          <Text style={[styles.tabText, activeTab === 'inventory' && styles.tabTextActive]}>Túi</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'shop' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('shop')}
+        >
+          <ShoppingBag size={20} color={activeTab === 'shop' ? '#58CC02' : '#a1a1aa'} />
+          <Text style={[styles.tabText, activeTab === 'shop' && styles.tabTextActive]}>Cửa hàng</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
+        {activeTab === 'profile' && (
+          <View>
+            {/* Header */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
-          <Text style={styles.username}>{user?.user_metadata?.username || "Người học"}</Text>
+          <Text style={styles.username}>{profile?.display_name || user?.user_metadata?.username || "Người học"}</Text>
           <Text style={styles.email}>{user?.email}</Text>
 
           <View style={styles.levelContainer}>
@@ -163,7 +194,7 @@ export default function ProfileScreen({ navigation }: any) {
 
         {/* Actions */}
         <View style={styles.actionsList}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/settings')}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Settings')}>
             <Settings size={20} color="#333" />
             <Text style={styles.actionBtnText}>Cài đặt</Text>
           </TouchableOpacity>
@@ -172,14 +203,25 @@ export default function ProfileScreen({ navigation }: any) {
             <Text style={[styles.actionBtnText, styles.actionBtnTextLogout]}>Đăng xuất</Text>
           </TouchableOpacity>
         </View>
+          </View>
+        )}
+
+        {activeTab === 'inventory' && <Inventory />}
+        
+        {activeTab === 'shop' && <Shop />}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9f9f9' },
   center: { justifyContent: 'center', alignItems: 'center' },
+  tabContainer: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e5e5', paddingHorizontal: 16 },
+  tabButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 8, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabButtonActive: { borderBottomColor: '#58CC02' },
+  tabText: { fontSize: 16, fontWeight: 'bold', color: '#a1a1aa' },
+  tabTextActive: { color: '#58CC02' },
   scrollContent: { padding: 16, paddingBottom: 40 },
   header: { alignItems: 'center', marginBottom: 32 },
   avatarContainer: {
